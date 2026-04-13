@@ -1,0 +1,102 @@
+{sema/ TypeName VariantName FieldName TraitName MethodName
+       ModuleName StringLiteral BindingName ExprRef StmtRef BodyRef
+       Operator SemaTypeForm ParamBorrow SemaDeclarationRef
+       Sema SemaType SemaVariant SemaField
+       SemaTraitDecl SemaMethodSig SemaTraitImpl SemaMethod SemaParam
+       SemaFfi SemaConst SemaModule
+       ExprArena SemaExpr SemaStatement SemaBody SemaMatchArm SemaPattern}
+
+;; ── Typed ordinals ──────────────────────────────────────────
+
+(TypeName/ (TypeName/ U32))
+(VariantName/ (VariantName/ U32))
+(FieldName/ (FieldName/ U32))
+(TraitName/ (TraitName/ U32))
+(MethodName/ (MethodName/ U32))
+(ModuleName/ (ModuleName/ U32))
+(StringLiteral/ (StringLiteral/ U32))
+(BindingName/ (BindingName/ U32))
+(ExprRef/ (ExprRef/ U32))
+(StmtRef/ (StmtRef/ U32))
+(BodyRef/ (BodyRef/ U32))
+
+;; ── Fixed domains ───────────────────────────────────────────
+
+(Operator/ Add Sub Mul Mod Eq NotEq Lt Gt LtEq GtEq And Or)
+
+(SemaTypeForm/ Domain Struct Alias)
+
+(ParamBorrow/ Owned Immutable Mutable)
+
+(SemaDeclarationRef/
+  (Type/ U32) (TraitDecl/ U32) (TraitImpl/ U32) (Const/ U32) (Ffi/ U32))
+
+;; ── Core relations ──────────────────────────────────────────
+
+{SemaType/ Name TypeName Form SemaTypeForm}
+
+{SemaVariant/ TypeId TypeName Name VariantName Ordinal U32 Wraps Option<TypeName>}
+
+{SemaField/ TypeId TypeName Name FieldName FieldType TypeName Ordinal U32}
+
+{SemaTraitDecl/ Name TraitName MethodSigs Vec<SemaMethodSig>}
+
+{SemaMethodSig/ Name MethodName Params Vec<SemaParam> ReturnType Option<TypeName>}
+
+{SemaTraitImpl/ TraitId TraitName TypeId TypeName Methods Vec<SemaMethod>}
+
+{SemaMethod/ Name MethodName Params Vec<SemaParam> ReturnType Option<TypeName> Body BodyRef}
+
+{SemaParam/ Name MethodName Typ Option<TypeName> Borrow ParamBorrow}
+
+{SemaFfi/ Library TypeName Name MethodName Params Vec<SemaParam> ReturnType Option<TypeName>}
+
+{SemaConst/ Name TypeName Typ TypeName Value ExprRef}
+
+{SemaModule/ Name ModuleName IsMain Bool DeclarationOrder Vec<SemaDeclarationRef>}
+
+;; ── Expression arena ────────────────────────────────────────
+
+{ExprArena/ Exprs Vec<SemaExpr> Stmts Vec<SemaStatement> Bodies Vec<SemaBody> MatchArms Vec<SemaMatchArm>}
+
+(SemaExpr/
+  (IntLit/ I64)
+  (FloatLit/ F64)
+  (StringLit/ StringLiteral)
+  SelfRef
+  (InstanceRef/ BindingName)
+  {QualifiedVariant/ Domain TypeName Variant VariantName}
+  (BareName/ BindingName)
+  {TypePath/ Typ TypeName Member MethodName}
+  {BinOp/ Op Operator Lhs ExprRef Rhs ExprRef}
+  {FieldAccess/ Object ExprRef Field FieldName}
+  {MethodCall/ Object ExprRef Method MethodName Args Vec<ExprRef>}
+  (Group/ ExprRef)
+  (Return/ ExprRef)
+  (TryUnwrap/ ExprRef)
+  (InlineEval/ Vec<StmtRef>)
+  {MatchExpr/ Target Option<ExprRef> Arms Vec<U32>}
+  {StructConstruct/ TypeName TypeName Fields Vec<ExprRef>})
+
+(SemaStatement/
+  (Expr/ ExprRef)
+  {Allocation/ Name BindingName Typ Option<TypeName> Init Option<ExprRef>}
+  {MutAllocation/ Name BindingName Typ Option<TypeName> Init Option<ExprRef>}
+  {Mutation/ Target BindingName Method MethodName Args Vec<ExprRef>}
+  {Iteration/ Source ExprRef Body Vec<StmtRef>})
+
+(SemaBody/
+  Empty
+  (Block/ Vec<StmtRef>)
+  {MatchBody/ Target Option<ExprRef> Arms Vec<U32>})
+
+{SemaMatchArm/ Patterns Vec<SemaPattern> Result ExprRef}
+
+(SemaPattern/ (Variant/ VariantName) (Or/ Vec<VariantName>))
+
+;; ── Root container ──────────────────────────────────────────
+
+{Sema/ Types Vec<SemaType> Variants Vec<SemaVariant> Fields Vec<SemaField>
+       TraitDecls Vec<SemaTraitDecl> TraitImpls Vec<SemaTraitImpl>
+       FfiEntries Vec<SemaFfi> Constants Vec<SemaConst>
+       ProcessBody Option<BodyRef> Modules Vec<SemaModule> Arena ExprArena}
