@@ -1,0 +1,10 @@
+{register/ Register}
+
+(Register/
+  [(registerFromKey/ ~@Self @keyItem Item @keyText String @delim Delimiter)])
+
+[Register/ AskiWorld [
+  (registerFromKey/ ~@Self @keyItem Item @keyText String @delim Delimiter [
+    ;; TODO: match on (keyItem, delim) to register domain/struct/trait/variant/method
+  ])
+]]

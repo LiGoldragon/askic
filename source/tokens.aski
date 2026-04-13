@@ -1,0 +1,29 @@
+{tokens/ Token Spanned}
+
+;; ── Token domain ────────────────────────────────────────────
+;; 42 variants matching the Logos lexer output.
+;; Data-carrying: PascalIdent, CamelIdent, Integer, Float, StringLit, OrdinalSuffix
+
+(Token/
+  Comment Newline
+  LParen RParen LBracket RBracket LBrace RBrace
+  LParenPipe RPipeParen LBracketPipe RPipeBracket LBracePipe RPipeBrace
+  Dot At Dollar Caret GreaterThan LessThan Ampersand Tilde
+  Question Bang Hash Pipe Tick Colon
+  Plus Minus Star Slash Percent
+  DoubleEquals Equals NotEqual
+  GreaterThanOrEqual LessThanOrEqual LogicalAnd LogicalOr
+  Comma Underscore RangeInclusive RangeExclusive Stub
+  (PascalIdent/ String) (CamelIdent/ String)
+  (Integer/ I64) (Float/ String) (StringLit/ String)
+  (OrdinalSuffix/ U32))
+
+;; ── Spanned token ───────────────────────────────────────────
+
+{Spanned/ Token Token Start U32 End U32}
+
+;; ── Lexer FFI ───────────────────────────────────────────────
+
+(|Lexer/
+  (lex/ @source String Vec<Spanned>)
+|)

@@ -1,0 +1,10 @@
+{deparse/ Deparse}
+
+(Deparse/
+  [(deparse/ :@Self String)])
+
+[Deparse/ AskiWorld [
+  (deparse/ :@Self String [
+    ;; TODO: walk parse nodes, emit aski text with sigils
+  ])
+]]

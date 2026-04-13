@@ -1,0 +1,10 @@
+{parseItem/ ParseItem}
+
+(ParseItem/
+  [(parseItem/ ~@Self @reader TokenReader @parentId I64 @item Item)])
+
+[ParseItem/ AskiWorld [
+  (parseItem/ ~@Self @reader TokenReader @parentId I64 @item Item [
+    ;; TODO: match on Item variant, dispatch to cardinality/delimiter/declare/etc.
+  ])
+]]

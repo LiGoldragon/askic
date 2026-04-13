@@ -1,0 +1,14 @@
+{parse/ Parse}
+
+(Parse/
+  [(parseFile/ ~@Self @filePath String @source String)
+   (parseMain/ ~@Self @filePath String @source String)])
+
+[Parse/ AskiWorld [
+  (parseFile/ ~@Self @filePath String @source String [
+    ;; TODO: lex source, push "aski" dialect, parse_dialect_looping
+  ])
+  (parseMain/ ~@Self @filePath String @source String [
+    ;; TODO: lex source, push "main" dialect, parse imports then body
+  ])
+]]

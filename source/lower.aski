@@ -1,0 +1,13 @@
+{lower/ Lower LowerResult}
+
+{LowerResult/ Sema Sema Names NameInterner Exports Vec<String>}
+
+(Lower/
+  [(lower/ :@Self LowerResult)])
+
+[Lower/ AskiWorld [
+  (lower/ :@Self LowerResult [
+    ;; TODO: walk root children, lower each by constructor
+    ;; Build Sema + NameInterner + exports
+  ])
+]]
