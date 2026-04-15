@@ -2,6 +2,6 @@
 name = "askic"
 version = "0.16.0"
 edition = "2021"
-description = "askic — Stage 2: parses .aski bodies with data-tree, produces typed parse tree"
+description = "askic — aski compiler: parses .aski programs using askicc's data-tree"
 
 [dependencies]

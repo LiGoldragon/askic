@@ -1,5 +1,5 @@
 {
-  description = "askic — Stage 2: aski body parser";
+  description = "askic — aski compiler: parses .aski programs using askicc's data-tree";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
