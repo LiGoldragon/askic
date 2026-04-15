@@ -8,23 +8,23 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
     crane.url = "github:ipetkov/crane";
-    synthc = {
-      url = "github:LiGoldragon/synthc";
+    askicc = {
+      url = "github:LiGoldragon/askicc";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.fenix.follows = "fenix";
       inputs.crane.follows = "crane";
     };
   };
 
-  outputs = { self, nixpkgs, fenix, crane, synthc, ... }:
+  outputs = { self, nixpkgs, fenix, crane, askicc, ... }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       toolchain = fenix.packages.${system}.stable.toolchain;
       craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
 
-      synthc-bin = synthc.packages.${system}.synthc;
-      synth-dialect = synthc.packages.${system}.synth-dialect;
+      askicc-bin = askicc.packages.${system}.askicc;
+      synth-dialect = askicc.packages.${system}.synth-dialect;
 
       src = pkgs.lib.cleanSourceWith {
         src = ./.;
@@ -37,7 +37,7 @@
         inherit src;
         pname = "askic";
         version = "0.16.0";
-        nativeBuildInputs = [ synthc-bin ];
+        nativeBuildInputs = [ askicc-bin ];
         SYNTH_DIR = "${synth-dialect}";
       };
 
@@ -61,7 +61,7 @@
       };
 
       devShells.${system}.default = craneLib.devShell {
-        packages = [ synthc-bin pkgs.rust-analyzer ];
+        packages = [ askicc-bin pkgs.rust-analyzer ];
         SYNTH_DIR = "${synth-dialect}";
       };
     };
