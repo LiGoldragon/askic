@@ -1,8 +1,0 @@
-[package]
-name = "askic-ffi"
-version = "0.1.0"
-edition = "2021"
-description = "FFI implementations for the askic compiler (Logos lexer, file I/O, string ops)"
-
-[dependencies]
-logos = "0.14"
