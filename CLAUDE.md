@@ -1,25 +1,23 @@
-# askic — the aski compiler, written in aski
+# askic — Stage 2: Aski Compiler
 
-Self-hosting compiler. Stage1 (aski-rs-bootstrap) compiles these
-.aski sources to Rust. rustc compiles that Rust + ffi/ crate into
-the askic binary. That binary can then compile itself.
+Takes Stage 1's data-tree. Parses .aski source bodies using the
+dialect-driven parser. Produces a fully-typed parse tree.
 
-## Structure
+## Current State
 
-```
-source/         .aski modules (the compiler in aski)
-ffi/            Rust crate providing FFI implementations
-flake.nix       build pipeline: stage1 → .sema → .rs → rustc + ffi → binary
-```
+The compiler is not yet built. The Rust bootstrap is being developed
+across the three stage repos (synthc → askic → semac).
 
-## Pipeline
+v0.15 reference code is in `v015_reference/` — 14 .aski modules
+showing the previous compiler structure, useful as a guide.
 
-```
-source/*.aski → stage1 askic compile → .sema + .aski-table.sema
-                stage1 askic rust .sema → .rs
-                rustc .rs + ffi/ crate → askic binary
-```
+## Repos
+
+- **synthc** — Stage 1: .synth + .aski → data-tree + derived enums
+- **askic** — Stage 2: data-tree + .aski bodies → typed parse tree
+- **semac** — Stage 3: parse tree → .sema binary + codegen
+- **aski** — language spec (`spec/pipeline.md`)
 
 ## VCS
 
-Jujutsu (`jj`) mandatory. Branch: `main`. Push after every change.
+Jujutsu (`jj`) mandatory. Always pass `-m`.
