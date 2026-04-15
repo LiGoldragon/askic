@@ -1,26 +1,25 @@
 # askic — Aski Compiler
 
-Takes askicc's data-tree. Parses .aski source bodies using the
-dialect-driven parser. Produces a fully-typed parse tree.
+The compiler stage of the sema engine. Takes askicc's binary output
+(the data-tree) and parses .aski programs: expressions, statements,
+match arms, scope enforcement. Produces a fully-typed parse tree.
 
-askic depends on askicc as a crate — reuses the core declaration
-parser, lexer, and token reader. Adds body-level parsing on top:
-expressions, statements, match arms, scope enforcement.
+Depends on askicc's **output** (the data-tree artifact) and the
+type definitions from aski-core.
 
 ## Current State
 
-The compiler is not yet built. The Rust bootstrap is being developed
-across the compiler repos (askicc → askic → semac).
+Not yet built. Stubs in src/.
 
-v0.15 reference code is in `v015_reference/` — 14 .aski modules
-showing the previous compiler structure, useful as a guide.
+v0.15 reference code in `v015_reference/` — 14 .aski modules
+showing the previous compiler structure.
 
-## Repos
+## The Sema Engine
 
-- **askicc** — bootstrap: .synth grammar + askic's .aski anatomy → data-tree
-- **askic** — compiler: data-tree + .aski bodies → typed parse tree
-- **semac** — sema generator: parse tree → .sema binary + codegen
-- **aski** — language spec (`spec/pipeline.md`)
+```
+aski-core  →  askicc  →  askic  →  semac
+(anatomy)    (bootstrap)  (compiler)  (sema gen)
+```
 
 ## VCS
 
