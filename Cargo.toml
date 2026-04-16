@@ -15,3 +15,7 @@ path = "src/lib.rs"
 
 [dependencies]
 logos = "0.14"
+rkyv = { version = "0.8", default-features = false, features = [
+    "little_endian",
+    "alloc",
+] }

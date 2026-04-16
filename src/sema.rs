@@ -1,18 +1,14 @@
-/// Sema serialization — domain tree → .sema binary.
+/// Sema serialization — AskiProgram → .sema binary via rkyv.
 ///
-/// Bootstrap uses simple bincode-style serialization.
-/// The self-hosted version will use rkyv for zero-copy.
-///
-/// TODO: rkyv recursive type support (needs manual impl
-/// or structural changes to break cycles).
+/// The arena IS the .sema file. rkyv zero-copy mmap.
+/// No recursive types — all refs are arena indices.
 
 use crate::domain::AskiProgram;
 
 impl AskiProgram {
     pub fn to_sema_bytes(&self) -> Vec<u8> {
-        // bootstrap: use debug format as placeholder
-        // real serialization needs rkyv with manual impls
-        // for recursive types
-        format!("{:#?}", self).into_bytes()
+        rkyv::to_bytes::<rkyv::rancor::Error>(self)
+            .expect("sema serialization failed")
+            .to_vec()
     }
 }
