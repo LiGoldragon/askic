@@ -1,7 +1,17 @@
 [package]
 name = "askic"
-version = "0.16.0"
+version = "0.17.0"
 edition = "2021"
-description = "askic — aski compiler: parses .aski programs using askicc's data-tree"
+authors = ["Li Goldragon <li@goldragon.criome.net>"]
+description = "askic — the aski frontend: reads .aski, produces .sema"
+
+[[bin]]
+name = "askic"
+path = "src/main.rs"
+
+[lib]
+name = "askic"
+path = "src/lib.rs"
 
 [dependencies]
+logos = "0.14"
