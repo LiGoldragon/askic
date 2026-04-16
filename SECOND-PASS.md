@@ -1,6 +1,18 @@
 # Second Pass Cleanup Notes
 
-Things to revisit after the bootstrap works.
+## CRITICAL: parse.rs is WRONG
+
+parse.rs is a hand-written recursive descent parser that bypasses
+askicc's dialect data entirely. It produces correct output but
+through the wrong mechanism. It must be REPLACED with a generic
+dialect engine that reads askicc's generated dialect structures
+and drives parsing from them.
+
+The domain types (domain.rs), lexer, rkyv serialization (sema.rs),
+and tests are correct and should be kept. Only parse.rs needs
+replacement.
+
+## Things to revisit after the bootstrap works.
 
 ## askicc
 - Synth lexer `<`/`>` handling: 4 match arms for 2 concepts. Unify.
