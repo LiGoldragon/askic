@@ -1,14 +1,8 @@
 /// askic — the aski frontend.
 ///
-/// Reads .aski source, produces .sema binary.
-/// Contains cc + askicc baked in.
+/// Reads .aski source → dialect state machine → rkyv parse tree.
+/// Grammar from embedded aski-core rkyv. Output as sema-core types.
 
 pub mod lexer;
 #[cfg(test)]
 mod lexer_tests;
-pub mod domain;
-pub mod parse;
-#[cfg(test)]
-mod parse_tests;
-pub mod codegen;
-pub mod sema;
