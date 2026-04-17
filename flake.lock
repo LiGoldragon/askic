@@ -17,11 +17,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1776380483,
-        "narHash": "sha256-zs/VhOgrRpMWRIUyIgGewQ+7EzabpB57uPOot7/JRes=",
+        "lastModified": 1776415046,
+        "narHash": "sha256-SX2pnCxhnq6ZtmnY8d/ODCZfEgCV4ZQ2EYVt1FOQIzk=",
         "owner": "LiGoldragon",
         "repo": "aski-core",
-        "rev": "ae2d50fd417f461168f129f1f71efbee7838cff6",
+        "rev": "f25cf5f3fc7b386a2d90d09cdc245f90185ae3c8",
         "type": "github"
       },
       "original": {
@@ -49,11 +49,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1776411245,
-        "narHash": "sha256-5iKELUP+XsUFg/EpbbrEkTOGHuII9w2XUl/TO9X9T90=",
+        "lastModified": 1776419462,
+        "narHash": "sha256-CY94RW6RjB2Y8s6BNHNZi7y6TJIypHHeAXcv3HIWlqY=",
         "owner": "LiGoldragon",
         "repo": "askicc",
-        "rev": "d5b37f02a094cf01a16fcea4e8d86e77fd747278",
+        "rev": "1c33e39d76a4eff1641b7107bf6bb546557a8e50",
         "type": "github"
       },
       "original": {
@@ -243,11 +243,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1776410507,
-        "narHash": "sha256-MIcF1/mWGA+bnHOh+1uWn7M6hF29wojYXc2xAkZU1sU=",
+        "lastModified": 1776417801,
+        "narHash": "sha256-+cwsbcanjdhaBwtCLQiZEoGdrCXtkTWtdH/urqO8jlQ=",
         "owner": "LiGoldragon",
         "repo": "sema-core",
-        "rev": "15399a2022d46f482ad2af35beab70231ce0b82a",
+        "rev": "aa389c3c2125cc930a46eed5d7786e18bbd63c4f",
         "type": "github"
       },
       "original": {
