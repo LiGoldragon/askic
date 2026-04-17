@@ -3,7 +3,7 @@ name = "askic"
 version = "0.17.0"
 edition = "2021"
 authors = ["Li Goldragon <li@goldragon.criome.net>"]
-description = "askic — the aski frontend: reads .aski, produces .sema"
+description = "askic — aski frontend: dialect state machine → rkyv parse tree"
 
 [[bin]]
 name = "askic"
@@ -14,6 +14,8 @@ name = "askic"
 path = "src/lib.rs"
 
 [dependencies]
+aski-core = { path = "flake-crates/aski-core" }
+sema-core = { path = "flake-crates/sema-core" }
 logos = "0.14"
 rkyv = { version = "0.8", default-features = false, features = [
     "little_endian",
