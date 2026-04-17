@@ -6,6 +6,8 @@
 pub mod lexer;
 #[cfg(test)]
 mod lexer_tests;
+pub mod typed;
+pub mod machine;
 pub mod values;
 pub mod engine;
 #[cfg(test)]
