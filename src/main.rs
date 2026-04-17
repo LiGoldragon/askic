@@ -1,7 +1,7 @@
 /// askic — the aski frontend.
 ///
 /// Dialect state machine driven by aski-core rkyv data.
-/// Reads .aski source → rkyv parse tree (sema-core types).
+/// Reads .aski source → per-module rkyv (ModuleDef).
 ///
 /// Usage: askic <file.aski> [output.rkyv]
 
@@ -29,12 +29,12 @@ impl Askic {
             .map_err(|errs| format!("lex errors: {}", errs.iter()
                 .map(|e| e.to_string()).collect::<Vec<_>>().join(", ")))?;
 
-        let root_children = self.engine.parse(&tokens)?;
+        let module = self.engine.parse(&tokens)?;
 
-        eprintln!("askic: parsed {} → {} root children",
-            source_path, root_children.len());
+        eprintln!("askic: parsed {} → module {}",
+            source_path, module.name.0);
 
-        let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&root_children)
+        let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&module)
             .map_err(|e| format!("serialization failed: {}", e))?;
 
         fs::write(output_path, bytes.as_ref())

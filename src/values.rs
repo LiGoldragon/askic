@@ -24,7 +24,6 @@ pub enum ParseValue {
 /// What a dialect produces — typed sema-core values.
 #[derive(Debug)]
 pub enum DialectValue {
-    RootChildren(Vec<RootChild>),
     Module(ModuleDef),
     EnumChildren(Vec<EnumChild>),
     StructChildren(Vec<StructChild>),

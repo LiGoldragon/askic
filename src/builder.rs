@@ -110,15 +110,15 @@ impl Builder {
     fn build_root(&self, rules: Vec<MatchedRule>) -> Result<ParseValue, String> {
         // Rule 0: Sequential (@Module <Module>) — the module declaration
         // Rule 1: RepeatedChoice — all other root constructs
-        let mut children = Vec::new();
+        //
+        // The builder restructures the flat parse into a ModuleDef container.
+        // Text is flat; the tree comes from here.
 
         // Module from rule 0
-        if let Some(MatchedRule::Sequential(ref items)) = rules.get(0) {
-            // items[0] = Seq([Name(module_name), Dialect(Module(...))])
-            // from delimited (...) containing @Module and <Module>
+        let mut module = if let Some(MatchedRule::Sequential(ref items)) = rules.get(0) {
             let inner = items[0].as_seq();
             let name = TypeName(inner[0].as_name());
-            let module_def = match &inner[1] {
+            match &inner[1] {
                 ParseValue::Dialect(DialectValue::Module(m)) => {
                     let mut m = m.clone();
                     m.name = name;
@@ -133,131 +133,131 @@ impl Builder {
                     visibility: Visibility::Public,
                     exports: vec![],
                     imports: vec![],
+                    enums: vec![],
+                    structs: vec![],
+                    newtypes: vec![],
+                    consts: vec![],
+                    trait_decls: vec![],
+                    trait_impls: vec![],
+                    ffi: vec![],
+                    process: None,
                     span: inner[0].as_span(),
                 },
-            };
-            children.push(RootChild::Module(module_def));
-        }
+            }
+        } else {
+            return Err("missing module declaration".into());
+        };
 
-        // Other constructs from rule 1
+        // Other constructs from rule 1 — populate ModuleDef fields
         if let Some(MatchedRule::RepeatedChoice(ref repeated)) = rules.get(1) {
             for (alt_idx, values) in repeated {
-                let child = self.build_root_child(*alt_idx, values)?;
-                children.push(child);
+                match alt_idx {
+                    0 => {
+                        // *(@Enum <Enum>)
+                        let inner = values[0].as_seq();
+                        let name = TypeName(inner[0].as_name());
+                        let children = match &inner[1] {
+                            ParseValue::Dialect(DialectValue::EnumChildren(c)) => c.clone(),
+                            _ => return Err("expected enum children".into()),
+                        };
+                        module.enums.push(EnumDef {
+                            name, visibility: Visibility::Public,
+                            generic_params: vec![], derives: vec![],
+                            children, span: span_from_values(inner),
+                        });
+                    }
+                    1 => {
+                        // *(@trait <TraitDecl>)
+                        let inner = values[0].as_seq();
+                        let name = TraitName(inner[0].as_name());
+                        match &inner[1] {
+                            ParseValue::Dialect(DialectValue::TraitDecl(td)) => {
+                                let mut td = td.clone();
+                                td.name = name;
+                                td.span = span_from_values(inner);
+                                module.trait_decls.push(td);
+                            }
+                            _ => return Err("expected trait decl".into()),
+                        }
+                    }
+                    2 => {
+                        // *[@trait <TraitImpl>]
+                        let inner = values[0].as_seq();
+                        let name = TraitName(inner[0].as_name());
+                        match &inner[1] {
+                            ParseValue::Dialect(DialectValue::TraitImpl(ti)) => {
+                                let mut ti = ti.clone();
+                                ti.trait_name = name;
+                                ti.span = span_from_values(inner);
+                                module.trait_impls.push(ti);
+                            }
+                            _ => return Err("expected trait impl".into()),
+                        }
+                    }
+                    3 => {
+                        // *{@Struct <Struct>}
+                        let inner = values[0].as_seq();
+                        let name = TypeName(inner[0].as_name());
+                        let children = match &inner[1] {
+                            ParseValue::Dialect(DialectValue::StructChildren(c)) => c.clone(),
+                            _ => return Err("expected struct children".into()),
+                        };
+                        module.structs.push(StructDef {
+                            name, visibility: Visibility::Public,
+                            generic_params: vec![], derives: vec![],
+                            children, span: span_from_values(inner),
+                        });
+                    }
+                    4 => {
+                        // *{|@Const <Type> @Literal|}
+                        let inner = values[0].as_seq();
+                        let name = TypeName(inner[0].as_name());
+                        let typ = inner[1].as_type_expr();
+                        let value = inner[2].as_literal();
+                        module.consts.push(ConstDef {
+                            name, visibility: Visibility::Public,
+                            typ, value, span: span_from_values(inner),
+                        });
+                    }
+                    5 => {
+                        // *(|@Ffi <Ffi>|)
+                        let inner = values[0].as_seq();
+                        let name = TypeName(inner[0].as_name());
+                        match &inner[1] {
+                            ParseValue::Dialect(DialectValue::FfiDef(f)) => {
+                                let mut f = f.clone();
+                                f.library = name;
+                                f.span = span_from_values(inner);
+                                module.ffi.push(f);
+                            }
+                            _ => return Err("expected ffi def".into()),
+                        }
+                    }
+                    6 => {
+                        // ?[|<Process>|]
+                        let inner = values[0].as_seq();
+                        let block = inner[0].as_block();
+                        module.process = Some(block);
+                    }
+                    7 => {
+                        // *@Newtype <Type>
+                        let name = TypeName(values[0].as_name());
+                        let wraps = values[1].as_type_expr();
+                        module.newtypes.push(NewtypeDef {
+                            name, visibility: Visibility::Public,
+                            generic_params: vec![], derives: vec![],
+                            wraps, span: Span {
+                                start: values[0].as_span().start,
+                                end: values[1].as_span().end,
+                            },
+                        });
+                    }
+                    _ => return Err(format!("unknown root alt {}", alt_idx)),
+                }
             }
         }
 
-        Ok(ParseValue::Dialect(DialectValue::RootChildren(children)))
-    }
-
-    fn build_root_child(&self, alt_idx: usize, values: &[ParseValue]) -> Result<RootChild, String> {
-        match alt_idx {
-            0 => {
-                // *(@Enum <Enum>) → RootChild::Enum
-                let inner = values[0].as_seq();
-                let name = TypeName(inner[0].as_name());
-                let children = match &inner[1] {
-                    ParseValue::Dialect(DialectValue::EnumChildren(c)) => c.clone(),
-                    _ => return Err("expected enum children".into()),
-                };
-                let span = Span {
-                    start: inner[0].as_span().start,
-                    end: inner.last().map(|v| v.as_span().end).unwrap_or(0),
-                };
-                Ok(RootChild::Enum(EnumDef {
-                    name, visibility: Visibility::Public,
-                    generic_params: vec![], derives: vec![],
-                    children, span,
-                }))
-            }
-            1 => {
-                // *(@trait <TraitDecl>) → RootChild::TraitDecl
-                let inner = values[0].as_seq();
-                let name = TraitName(inner[0].as_name());
-                match &inner[1] {
-                    ParseValue::Dialect(DialectValue::TraitDecl(td)) => {
-                        let mut td = td.clone();
-                        td.name = name;
-                        td.span = span_from_values(inner);
-                        Ok(RootChild::TraitDecl(td))
-                    }
-                    _ => Err("expected trait decl".into()),
-                }
-            }
-            2 => {
-                // *[@trait <TraitImpl>] → RootChild::TraitImpl
-                let inner = values[0].as_seq();
-                let name = TraitName(inner[0].as_name());
-                match &inner[1] {
-                    ParseValue::Dialect(DialectValue::TraitImpl(ti)) => {
-                        let mut ti = ti.clone();
-                        ti.trait_name = name;
-                        ti.span = span_from_values(inner);
-                        Ok(RootChild::TraitImpl(ti))
-                    }
-                    _ => Err("expected trait impl".into()),
-                }
-            }
-            3 => {
-                // *{@Struct <Struct>} → RootChild::Struct
-                let inner = values[0].as_seq();
-                let name = TypeName(inner[0].as_name());
-                let children = match &inner[1] {
-                    ParseValue::Dialect(DialectValue::StructChildren(c)) => c.clone(),
-                    _ => return Err("expected struct children".into()),
-                };
-                Ok(RootChild::Struct(StructDef {
-                    name, visibility: Visibility::Public,
-                    generic_params: vec![], derives: vec![],
-                    children, span: span_from_values(inner),
-                }))
-            }
-            4 => {
-                // *{|@Const <Type> @Literal|} → RootChild::Const
-                let inner = values[0].as_seq();
-                let name = TypeName(inner[0].as_name());
-                let typ = inner[1].as_type_expr();
-                let value = inner[2].as_literal();
-                Ok(RootChild::Const(ConstDef {
-                    name, visibility: Visibility::Public,
-                    typ, value, span: span_from_values(inner),
-                }))
-            }
-            5 => {
-                // *(|@Ffi <Ffi>|) → RootChild::Ffi
-                let inner = values[0].as_seq();
-                let name = TypeName(inner[0].as_name());
-                match &inner[1] {
-                    ParseValue::Dialect(DialectValue::FfiDef(f)) => {
-                        let mut f = f.clone();
-                        f.library = name;
-                        f.span = span_from_values(inner);
-                        Ok(RootChild::Ffi(f))
-                    }
-                    _ => Err("expected ffi def".into()),
-                }
-            }
-            6 => {
-                // ?[|<Process>|] → RootChild::Process
-                let inner = values[0].as_seq();
-                let block = inner[0].as_block();
-                Ok(RootChild::Process(block))
-            }
-            7 => {
-                // *@Newtype <Type> → RootChild::Newtype
-                let name = TypeName(values[0].as_name());
-                let wraps = values[1].as_type_expr();
-                Ok(RootChild::Newtype(NewtypeDef {
-                    name, visibility: Visibility::Public,
-                    generic_params: vec![], derives: vec![],
-                    wraps, span: Span {
-                        start: values[0].as_span().start,
-                        end: values[1].as_span().end,
-                    },
-                }))
-            }
-            _ => Err(format!("unknown root alt {}", alt_idx)),
-        }
+        Ok(ParseValue::Dialect(DialectValue::Module(module)))
     }
 
     // ── Module ──────────────────────────────────────────────
@@ -317,6 +317,14 @@ impl Builder {
             visibility: Visibility::Public,
             exports,
             imports,
+            enums: vec![],
+            structs: vec![],
+            newtypes: vec![],
+            consts: vec![],
+            trait_decls: vec![],
+            trait_impls: vec![],
+            ffi: vec![],
+            process: None,
             span: Span { start: 0, end: 0 }, // filled by Root builder
         })))
     }

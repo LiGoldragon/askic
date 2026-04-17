@@ -45,12 +45,12 @@ impl Engine {
         &self.tree().dialects[*idx]
     }
 
-    pub fn parse(&self, tokens: &[Spanned]) -> Result<Vec<aski::RootChild>, String> {
+    pub fn parse(&self, tokens: &[Spanned]) -> Result<aski::ModuleDef, String> {
         let mut cursor = Cursor::new(tokens);
         let builder = Builder::new();
         let result = self.enter_dialect(&ArchivedDialectKind::Root, &mut cursor, &builder)?;
         match result {
-            ParseValue::Dialect(DialectValue::RootChildren(children)) => Ok(children),
+            ParseValue::Dialect(DialectValue::Module(m)) => Ok(m),
             other => Err(format!("root returned unexpected: {:?}", other)),
         }
     }
