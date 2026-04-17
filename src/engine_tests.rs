@@ -265,4 +265,15 @@ Counter U32
             + module.trait_decls.len() + module.trait_impls.len();
         assert!(total >= 7, "expected at least 7 definitions, got {}", total);
     }
+
+    #[test]
+    fn parse_module_with_imports() {
+        let module = parse("(App Element [Core Token ParseState])\n(Element Fire Earth Air Water)");
+        assert_eq!(module.name.0, "App");
+        assert_eq!(module.exports.len(), 1); // Element
+        eprintln!("imports: {:?}", module.imports);
+        assert!(!module.imports.is_empty(), "expected imports, got none");
+        assert_eq!(module.imports[0].source.0, "Core");
+        assert_eq!(module.imports[0].names.len(), 2); // Token, ParseState
+    }
 }
