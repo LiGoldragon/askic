@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 
-use aski_core::*;
+use synth_core::*;
 use crate::lexer::{Token, Spanned};
 use crate::values::*;
 use crate::builder::Builder;
@@ -45,7 +45,7 @@ impl Engine {
         &self.tree().dialects[*idx]
     }
 
-    pub fn parse(&self, tokens: &[Spanned]) -> Result<aski::ModuleDef, String> {
+    pub fn parse(&self, tokens: &[Spanned]) -> Result<aski_core::ModuleDef, String> {
         let mut cursor = Cursor::new(tokens);
         let builder = Builder::new();
         let result = self.enter_dialect(&ArchivedDialectKind::Root, &mut cursor, &builder)?;
@@ -328,18 +328,18 @@ impl Engine {
         let span = cursor.span();
         match &tok.token {
             Token::Integer(v) => {
-                let val = aski::LiteralValue::Int(*v);
+                let val = aski_core::LiteralValue::Int(*v);
                 cursor.advance();
                 Ok(ParseValue::Literal(val, span))
             }
             Token::Float(s) => {
                 let f: f64 = s.parse().map_err(|_| format!("invalid float: {}", s))?;
-                let val = aski::LiteralValue::Float(f);
+                let val = aski_core::LiteralValue::Float(f);
                 cursor.advance();
                 Ok(ParseValue::Literal(val, span))
             }
             Token::StringLit(s) => {
-                let val = aski::LiteralValue::Str(s.clone());
+                let val = aski_core::LiteralValue::Str(s.clone());
                 cursor.advance();
                 Ok(ParseValue::Literal(val, span))
             }
@@ -494,14 +494,14 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    pub fn span(&self) -> aski::Span {
+    pub fn span(&self) -> aski_core::Span {
         if let Some(tok) = self.peek() {
-            aski::Span {
+            aski_core::Span {
                 start: tok.span.start as u32,
                 end: tok.span.end as u32,
             }
         } else {
-            aski::Span { start: 0, end: 0 }
+            aski_core::Span { start: 0, end: 0 }
         }
     }
 

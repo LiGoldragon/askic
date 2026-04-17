@@ -1,6 +1,6 @@
 /// Intermediate values produced during dialect matching.
 
-use aski::*;
+use aski_core::*;
 
 /// What a single item match produces.
 #[derive(Debug)]

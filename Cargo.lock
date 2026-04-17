@@ -3,13 +3,6 @@
 version = 4
 
 [[package]]
-name = "aski"
-version = "0.17.0"
-dependencies = [
- "rkyv",
-]
-
-[[package]]
 name = "aski-core"
 version = "0.17.0"
 dependencies = [
@@ -20,10 +13,10 @@ dependencies = [
 name = "askic"
 version = "0.17.0"
 dependencies = [
- "aski",
  "aski-core",
  "logos",
  "rkyv",
+ "synth-core",
 ]
 
 [[package]]
@@ -197,6 +190,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "synth-core"
+version = "0.17.0"
+dependencies = [
+ "rkyv",
 ]
 
 [[package]]

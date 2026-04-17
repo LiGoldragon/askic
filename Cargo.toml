@@ -14,8 +14,8 @@ name = "askic"
 path = "src/lib.rs"
 
 [dependencies]
+synth-core = { path = "flake-crates/synth-core" }
 aski-core = { path = "flake-crates/aski-core" }
-aski = { path = "flake-crates/aski" }
 logos = "0.14"
 rkyv = { version = "0.8", default-features = false, features = [
     "little_endian",

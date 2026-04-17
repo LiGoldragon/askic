@@ -4,8 +4,8 @@
 /// constructs sema-core types. All sema-core knowledge
 /// lives here — the engine is generic.
 
+use synth_core::*;
 use aski_core::*;
-use aski::*;
 use crate::values::*;
 
 pub struct Builder;
