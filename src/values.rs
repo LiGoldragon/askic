@@ -1,6 +1,6 @@
 /// Intermediate values produced during dialect matching.
 
-use sema_core::*;
+use aski::*;
 
 /// What a single item match produces.
 #[derive(Debug)]

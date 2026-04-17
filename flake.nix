@@ -16,8 +16,8 @@
       inputs.crane.follows = "crane";
       inputs.flake-utils.follows = "flake-utils";
     };
-    sema-core = {
-      url = "github:LiGoldragon/sema-core";
+    aski = {
+      url = "github:LiGoldragon/aski";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.fenix.follows = "fenix";
       inputs.crane.follows = "crane";
@@ -34,7 +34,7 @@
   };
 
   outputs = { self, nixpkgs, fenix, crane, flake-utils,
-              aski-core, sema-core, askicc, ... }:
+              aski-core, aski, askicc, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -43,7 +43,7 @@
 
         # rkyv contract types
         aski-core-source = aski-core.packages.${system}.source;
-        sema-core-source = sema-core.packages.${system}.source;
+        aski-source = aski.packages.${system}.source;
 
         # askicc's rkyv dialect-data-tree — embedded via include_bytes!
         dialect-data = askicc.packages.${system}.dialect-data;
@@ -63,7 +63,7 @@
           postUnpack = ''
             mkdir -p $sourceRoot/flake-crates
             cp -r ${aski-core-source} $sourceRoot/flake-crates/aski-core
-            cp -r ${sema-core-source} $sourceRoot/flake-crates/sema-core
+            cp -r ${aski-source} $sourceRoot/flake-crates/aski
             chmod -R +w $sourceRoot/flake-crates
           '';
           # askicc's rkyv output — embedded at build time

@@ -45,7 +45,7 @@ impl Engine {
         &self.tree().dialects[*idx]
     }
 
-    pub fn parse(&self, tokens: &[Spanned]) -> Result<Vec<sema_core::RootChild>, String> {
+    pub fn parse(&self, tokens: &[Spanned]) -> Result<Vec<aski::RootChild>, String> {
         let mut cursor = Cursor::new(tokens);
         let builder = Builder::new();
         let result = self.enter_dialect(&ArchivedDialectKind::Root, &mut cursor, &builder)?;
@@ -328,18 +328,18 @@ impl Engine {
         let span = cursor.span();
         match &tok.token {
             Token::Integer(v) => {
-                let val = sema_core::LiteralValue::Int(*v);
+                let val = aski::LiteralValue::Int(*v);
                 cursor.advance();
                 Ok(ParseValue::Literal(val, span))
             }
             Token::Float(s) => {
                 let f: f64 = s.parse().map_err(|_| format!("invalid float: {}", s))?;
-                let val = sema_core::LiteralValue::Float(f);
+                let val = aski::LiteralValue::Float(f);
                 cursor.advance();
                 Ok(ParseValue::Literal(val, span))
             }
             Token::StringLit(s) => {
-                let val = sema_core::LiteralValue::Str(s.clone());
+                let val = aski::LiteralValue::Str(s.clone());
                 cursor.advance();
                 Ok(ParseValue::Literal(val, span))
             }
@@ -494,14 +494,14 @@ impl<'a> Cursor<'a> {
         }
     }
 
-    pub fn span(&self) -> sema_core::Span {
+    pub fn span(&self) -> aski::Span {
         if let Some(tok) = self.peek() {
-            sema_core::Span {
+            aski::Span {
                 start: tok.span.start as u32,
                 end: tok.span.end as u32,
             }
         } else {
-            sema_core::Span { start: 0, end: 0 }
+            aski::Span { start: 0, end: 0 }
         }
     }
 

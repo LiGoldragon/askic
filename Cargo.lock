@@ -3,6 +3,13 @@
 version = 4
 
 [[package]]
+name = "aski"
+version = "0.17.0"
+dependencies = [
+ "rkyv",
+]
+
+[[package]]
 name = "aski-core"
 version = "0.17.0"
 dependencies = [
@@ -13,10 +20,10 @@ dependencies = [
 name = "askic"
 version = "0.17.0"
 dependencies = [
+ "aski",
  "aski-core",
  "logos",
  "rkyv",
- "sema-core",
 ]
 
 [[package]]
@@ -179,13 +186,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "sema-core"
-version = "0.17.0"
-dependencies = [
- "rkyv",
 ]
 
 [[package]]

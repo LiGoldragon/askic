@@ -2,7 +2,7 @@
 mod tests {
     use crate::lexer::lex;
     use crate::engine::Engine;
-    use sema_core::*;
+    use aski::*;
 
     fn load_dialect_data() -> &'static [u8] {
         // Try DIALECT_DATA env var first (set by nix build)
