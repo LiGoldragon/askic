@@ -1,6 +1,6 @@
 {
   "nodes": {
-    "aski-core": {
+    "aski": {
       "inputs": {
         "corec": "corec",
         "crane": [
@@ -17,11 +17,41 @@
         ]
       },
       "locked": {
-        "lastModified": 1776415046,
-        "narHash": "sha256-SX2pnCxhnq6ZtmnY8d/ODCZfEgCV4ZQ2EYVt1FOQIzk=",
+        "lastModified": 1776428855,
+        "narHash": "sha256-FkHIO1KsAXL4d9Dp+P8dpnD67fTFPBvpBdAl0uOX6zo=",
+        "owner": "Criome",
+        "repo": "aski",
+        "rev": "93005a6bef8ac1ec30afba062bcd2f1d7846c5a0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Criome",
+        "repo": "aski",
+        "type": "github"
+      }
+    },
+    "aski-core": {
+      "inputs": {
+        "corec": "corec_2",
+        "crane": [
+          "crane"
+        ],
+        "fenix": [
+          "fenix"
+        ],
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1776428317,
+        "narHash": "sha256-7SXQVyUwuVbY/yN1ycGrparKfVPvJsESUj3ilBlU2iM=",
         "owner": "LiGoldragon",
         "repo": "aski-core",
-        "rev": "f25cf5f3fc7b386a2d90d09cdc245f90185ae3c8",
+        "rev": "978eaa855f059d6acab9f3e40e1430147464917a",
         "type": "github"
       },
       "original": {
@@ -49,11 +79,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1776421173,
-        "narHash": "sha256-0OZr0/69mQuVnTnynEdXkYICOqW1vZ2t+sRzewWb7q8=",
+        "lastModified": 1776428105,
+        "narHash": "sha256-sENqvyFHtywQdX+AfA0DHjan6rZx76FEtkSYkqIcOSc=",
         "owner": "LiGoldragon",
         "repo": "askicc",
-        "rev": "fe574f0002d78ff28caa52be0018654339c4e381",
+        "rev": "4897ec86b928d22a10315ebd31d3736f0e156ebd",
         "type": "github"
       },
       "original": {
@@ -65,28 +95,28 @@
     "corec": {
       "inputs": {
         "crane": [
-          "aski-core",
+          "aski",
           "crane"
         ],
         "fenix": [
-          "aski-core",
+          "aski",
           "fenix"
         ],
         "flake-utils": [
-          "aski-core",
+          "aski",
           "flake-utils"
         ],
         "nixpkgs": [
-          "aski-core",
+          "aski",
           "nixpkgs"
         ]
       },
       "locked": {
-        "lastModified": 1776380376,
-        "narHash": "sha256-8CCrPEMefva0t+HhXGb/f/IrWN5zgBY5f+K7FYEJjv8=",
+        "lastModified": 1776428315,
+        "narHash": "sha256-fX1x3wxVhfz6HUSl2CdHodi4dGxbd7LOt3ISeqgsPhU=",
         "owner": "LiGoldragon",
         "repo": "corec",
-        "rev": "4ed5e9d96672967c806d6150296e29dbaa1eb1cf",
+        "rev": "09dfbde1de2c50ebfb002fca38931491923b0243",
         "type": "github"
       },
       "original": {
@@ -98,19 +128,19 @@
     "corec_2": {
       "inputs": {
         "crane": [
-          "sema-core",
+          "aski-core",
           "crane"
         ],
         "fenix": [
-          "sema-core",
+          "aski-core",
           "fenix"
         ],
         "flake-utils": [
-          "sema-core",
+          "aski-core",
           "flake-utils"
         ],
         "nixpkgs": [
-          "sema-core",
+          "aski-core",
           "nixpkgs"
         ]
       },
@@ -151,11 +181,11 @@
         "rust-analyzer-src": "rust-analyzer-src"
       },
       "locked": {
-        "lastModified": 1776326782,
-        "narHash": "sha256-QzTHb5vhPVensbkL7+WhemxFYXINcdZB1SQ5EMjG2AU=",
+        "lastModified": 1776413252,
+        "narHash": "sha256-ZQhyB2vnFsE1KcWJlWle1UujEDVjTJVL3oMIHUvnzuo=",
         "owner": "nix-community",
         "repo": "fenix",
-        "rev": "47ece0146691d625f10a3d2ec4a2c04fca29a35b",
+        "rev": "a318c3c6120e91375eea1d7c57a0cd101a81b14a",
         "type": "github"
       },
       "original": {
@@ -200,59 +230,29 @@
     },
     "root": {
       "inputs": {
+        "aski": "aski",
         "aski-core": "aski-core",
         "askicc": "askicc",
         "crane": "crane",
         "fenix": "fenix",
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "sema-core": "sema-core"
+        "nixpkgs": "nixpkgs"
       }
     },
     "rust-analyzer-src": {
       "flake": false,
       "locked": {
-        "lastModified": 1776280158,
-        "narHash": "sha256-0uGgwgFVPQ28cVx7onaB1iTCHGi20MNx54e6KZbYnMs=",
+        "lastModified": 1776343166,
+        "narHash": "sha256-ZiHQPWwuUZk44epAZRbyFz23Kd4CYaq8WlBgAmCqAzQ=",
         "owner": "rust-lang",
         "repo": "rust-analyzer",
-        "rev": "94c2f68935467a6381a4f3504ae6c709b5fd3c61",
+        "rev": "b8458013c217be4fccefc4e4f194026fa04ab4ca",
         "type": "github"
       },
       "original": {
         "owner": "rust-lang",
         "ref": "nightly",
         "repo": "rust-analyzer",
-        "type": "github"
-      }
-    },
-    "sema-core": {
-      "inputs": {
-        "corec": "corec_2",
-        "crane": [
-          "crane"
-        ],
-        "fenix": [
-          "fenix"
-        ],
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "lastModified": 1776417801,
-        "narHash": "sha256-+cwsbcanjdhaBwtCLQiZEoGdrCXtkTWtdH/urqO8jlQ=",
-        "owner": "LiGoldragon",
-        "repo": "sema-core",
-        "rev": "aa389c3c2125cc930a46eed5d7786e18bbd63c4f",
-        "type": "github"
-      },
-      "original": {
-        "owner": "LiGoldragon",
-        "repo": "sema-core",
         "type": "github"
       }
     },
