@@ -167,12 +167,11 @@ impl Engine {
         cursor: &mut Cursor,
         builder: &Builder,
     ) -> Result<ParseValue, String> {
-        // TODO: adjacency checking needs proper implementation.
-        // The adjacent flag on items means "no space before this token in source"
-        // relative to the previous source-matching item. Currently disabled
-        // because the flag from synth encoding conflates synth-level adjacency
-        // with source-level adjacency requirements.
-        // if item.adjacent && ... { }
+        // Adjacency: if the item is marked adjacent, the source token must
+        // have no whitespace before it relative to the previous token.
+        if item.adjacent && !cursor.is_adjacent() {
+            return Err("expected adjacent token".into());
+        }
 
         match &item.content {
             ArchivedItemContent::Named { label } => {
@@ -486,11 +485,16 @@ impl<'a> Cursor<'a> {
 
     pub fn is_adjacent(&self) -> bool {
         if self.pos == 0 { return true; }
-        if let (Some(prev), Some(curr)) = (
-            self.tokens.get(self.pos.saturating_sub(1)),
-            self.peek()
-        ) {
-            curr.span.start == prev.span.end
+        // Find the last non-newline token before current position
+        let mut prev_idx = self.pos.saturating_sub(1);
+        while prev_idx > 0 && matches!(self.tokens[prev_idx].token, Token::Newline) {
+            prev_idx -= 1;
+        }
+        if matches!(self.tokens[prev_idx].token, Token::Newline) {
+            return false; // all previous tokens are newlines
+        }
+        if let Some(curr) = self.peek() {
+            curr.span.start == self.tokens[prev_idx].span.end
         } else {
             false
         }
