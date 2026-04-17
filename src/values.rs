@@ -89,6 +89,8 @@ impl ParseValue {
     pub fn as_type_expr(&self) -> TypeExpr {
         match self {
             ParseValue::Dialect(DialectValue::TypeExpr(t)) => t.clone(),
+            // Unwrap Seq from optional/repeat wrapping
+            ParseValue::Seq(v) if v.len() == 1 => v[0].as_type_expr(),
             other => panic!("expected TypeExpr, got {:?}", other),
         }
     }

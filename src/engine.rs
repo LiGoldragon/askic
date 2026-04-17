@@ -203,6 +203,11 @@ impl Engine {
         label: &ArchivedLabel,
         cursor: &mut Cursor,
     ) -> Result<ParseValue, String> {
+        // Special case: LabelKind::Literal reads a value token, not a name
+        if matches!(label.kind, ArchivedLabelKind::Literal) {
+            return self.match_literal_value(cursor);
+        }
+
         let is_pascal = matches!(label.casing, ArchivedCasing::Pascal);
         let tok = cursor.peek().ok_or("unexpected end of tokens")?;
 
@@ -240,8 +245,24 @@ impl Engine {
         token: &ArchivedLiteralToken,
         cursor: &mut Cursor,
     ) -> Result<ParseValue, String> {
-        let expected = Self::literal_to_token(token);
         let span = cursor.span();
+
+        // Multi-token literals: :@ and ~@ are two source tokens
+        match token {
+            ArchivedLiteralToken::BorrowAt => {
+                cursor.expect(&Token::Colon)?;
+                cursor.expect(&Token::At)?;
+                return Ok(ParseValue::Token(span));
+            }
+            ArchivedLiteralToken::MutAt => {
+                cursor.expect(&Token::Tilde)?;
+                cursor.expect(&Token::At)?;
+                return Ok(ParseValue::Token(span));
+            }
+            _ => {}
+        }
+
+        let expected = Self::literal_to_token(token);
         cursor.expect(&expected)?;
         Ok(ParseValue::Token(span))
     }
