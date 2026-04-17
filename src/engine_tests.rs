@@ -482,4 +482,24 @@ Items [Vec String]";
         assert_eq!(module.imports[0].source.0, "Core");
         assert_eq!(module.imports[1].source.0, "Utils");
     }
+
+    #[test]
+    fn debug_newtype_in_multi() {
+        let source = "\
+(Elements Element Quality)
+(Element Fire Earth Air Water)
+{Point (Horizontal F64) (Vertical F64)}
+Counter U32
+{| MaxSigns U32 12 |}";
+        let module = parse(source);
+        assert_eq!(module.newtypes.len(), 1);
+        assert_eq!(module.consts.len(), 1);
+    }
+
+    #[test]
+    #[ignore = "BUG: engine ordered choice — two consecutive newtypes produce 0. Newtype + Enum works. Root cause in engine's match_repeated_choice"]
+    fn parse_two_newtypes() {
+        let module = parse("(T E)\nCounter U32\nMeters F64");
+        assert_eq!(module.newtypes.len(), 2);
+    }
 }
