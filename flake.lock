@@ -49,11 +49,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1776419462,
-        "narHash": "sha256-CY94RW6RjB2Y8s6BNHNZi7y6TJIypHHeAXcv3HIWlqY=",
+        "lastModified": 1776421173,
+        "narHash": "sha256-0OZr0/69mQuVnTnynEdXkYICOqW1vZ2t+sRzewWb7q8=",
         "owner": "LiGoldragon",
         "repo": "askicc",
-        "rev": "1c33e39d76a4eff1641b7107bf6bb546557a8e50",
+        "rev": "fe574f0002d78ff28caa52be0018654339c4e381",
         "type": "github"
       },
       "original": {
