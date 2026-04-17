@@ -156,6 +156,27 @@ impl ParseValue {
         }
     }
 
+    pub fn as_statement(&self) -> Statement {
+        match self {
+            ParseValue::Dialect(DialectValue::Statement(s)) => s.clone(),
+            other => panic!("expected Statement, got {:?}", other),
+        }
+    }
+
+    pub fn as_mutation(&self) -> Mutation {
+        match self {
+            ParseValue::Dialect(DialectValue::Mutation(m)) => m.clone(),
+            other => panic!("expected Mutation, got {:?}", other),
+        }
+    }
+
+    pub fn as_instance(&self) -> Instance {
+        match self {
+            ParseValue::Dialect(DialectValue::Instance(i)) => i.clone(),
+            other => panic!("expected Instance, got {:?}", other),
+        }
+    }
+
     pub fn is_none(&self) -> bool {
         matches!(self, ParseValue::None_)
     }
