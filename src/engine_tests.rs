@@ -270,10 +270,216 @@ Counter U32
     fn parse_module_with_imports() {
         let module = parse("(App Element [Core Token ParseState])\n(Element Fire Earth Air Water)");
         assert_eq!(module.name.0, "App");
-        assert_eq!(module.exports.len(), 1); // Element
-        eprintln!("imports: {:?}", module.imports);
+        assert_eq!(module.exports.len(), 1);
         assert!(!module.imports.is_empty(), "expected imports, got none");
         assert_eq!(module.imports[0].source.0, "Core");
-        assert_eq!(module.imports[0].names.len(), 2); // Token, ParseState
+        assert_eq!(module.imports[0].names.len(), 2);
+    }
+
+    // ── Trait implementations ───────────────────────────────
+
+    #[test]
+    #[ignore = "BUG: trait impl parsing not producing TraitImplDef"]
+    fn parse_trait_impl_with_match_body() {
+        let source = "\
+(T E describe)
+(E Fire Water)
+(describe [(describe :@Self String)])
+[describe E [
+  (describe :@Self String (|
+    (Fire) \"hot\"
+    (Water) \"cold\"
+  |))
+]]";
+        let module = parse(source);
+        assert_eq!(module.trait_impls.len(), 1);
+        let ti = &module.trait_impls[0];
+        assert_eq!(ti.trait_name.0, "describe");
+        assert_eq!(ti.methods.len(), 1);
+        assert_eq!(ti.methods[0].name.0, "describe");
+    }
+
+    #[test]
+    #[ignore = "BUG: trait impl parsing not producing TraitImplDef"]
+    fn parse_trait_impl_with_block_body() {
+        let source = "\
+(T E compute)
+{Addition (Left U32) (Right U32)}
+(compute [(add :@Self U32)])
+[compute Addition [
+  (add :@Self U32 [
+    @Self.Left + @Self.Right
+  ])
+]]";
+        let module = parse(source);
+        assert_eq!(module.trait_impls.len(), 1);
+        let ti = &module.trait_impls[0];
+        assert_eq!(ti.methods[0].name.0, "add");
+        assert!(ti.methods[0].params.len() >= 1);
+    }
+
+    // ── Struct construction ─────────────────────────────────
+
+    #[test]
+    #[ignore = "BUG: struct construct method body not parsed"]
+    fn parse_struct_construct_method() {
+        let source = "\
+(T E geom)
+{Point (Horizontal F64) (Vertical F64)}
+(geom [(offset :@Self @Delta Point Point)])
+[geom Point [
+  (offset :@Self @Delta Point Point
+    {Point (Horizontal @Self.Horizontal + @Delta.Horizontal)
+           (Vertical @Self.Vertical + @Delta.Vertical)})
+]]";
+        let module = parse(source);
+        assert_eq!(module.trait_impls.len(), 1);
+        assert_eq!(module.trait_impls[0].methods.len(), 1);
+    }
+
+    // ── FFI ─────────────────────────────────────────────────
+
+    #[test]
+    #[ignore = "BUG: FFI block not producing FfiDef"]
+    fn parse_ffi_declaration() {
+        let source = "\
+(T E)
+(| Lexer
+  (lex @Source String [Vec Token])
+|)";
+        let module = parse(source);
+        assert_eq!(module.ffi.len(), 1);
+        let f = &module.ffi[0];
+        assert_eq!(f.library.0, "Lexer");
+        assert_eq!(f.functions.len(), 1);
+        assert_eq!(f.functions[0].name.0, "lex");
+    }
+
+    // ── Constants ───────────────────────────────────────────
+
+    #[test]
+    fn parse_multiple_consts() {
+        let source = "\
+(T E)
+{| MaxSigns U32 12 |}
+{| Pi F64 3.14159 |}";
+        let module = parse(source);
+        assert_eq!(module.consts.len(), 2);
+        assert_eq!(module.consts[0].name.0, "MaxSigns");
+        assert_eq!(module.consts[1].name.0, "Pi");
+    }
+
+    // ── Process block ───────────────────────────────────────
+
+    #[test]
+    #[ignore = "BUG: process block not parsed"]
+    fn parse_process_block() {
+        let source = "\
+(T E)
+(E Fire Water)
+[|
+  @MyElement E/Fire
+|]";
+        let module = parse(source);
+        assert!(module.process.is_some(), "expected process block");
+    }
+
+    // ── Newtype with application ────────────────────────────
+
+    #[test]
+    #[ignore = "BUG: multiple newtypes after other constructs not parsed"]
+    fn parse_multiple_newtypes() {
+        let source = "\
+(T E)
+Counter U32
+Meters F64
+Items [Vec String]";
+        let module = parse(source);
+        assert_eq!(module.newtypes.len(), 3);
+        assert_eq!(module.newtypes[0].name.0, "Counter");
+        assert_eq!(module.newtypes[1].name.0, "Meters");
+        assert_eq!(module.newtypes[2].name.0, "Items");
+    }
+
+    // ── Nested struct inside struct ─────────────────────────
+
+    #[test]
+    fn parse_nested_struct_in_struct() {
+        let source = "\
+(T E)
+{Drawing
+  (Shapes [Vec String])
+  Name
+  {| Config (Timeout U32) (Retries U32) |}}";
+        let module = parse(source);
+        assert_eq!(module.structs.len(), 1);
+        let s = &module.structs[0];
+        assert_eq!(s.name.0, "Drawing");
+        // Should have typed field, self-typed field, and nested struct
+        assert!(s.children.len() >= 3);
+    }
+
+    // ── Module with action exports ──────────────────────────
+
+    #[test]
+    #[ignore = "BUG: camelCase trait exports not parsed correctly"]
+    fn parse_module_with_trait_exports() {
+        let source = "\
+(T E describe compute)
+(E Fire)
+(describe [(describe :@Self String)])
+(compute [(add :@Self U32)])";
+        let module = parse(source);
+        assert_eq!(module.exports.len(), 1); // E is type export
+        // describe and compute should be trait exports
+        // Note: the module grammar uses PascalCase for ObjectExport
+        // and camelCase for actionExport
+        assert_eq!(module.trait_decls.len(), 2);
+    }
+
+    // ── Early return ────────────────────────────────────────
+
+    #[test]
+    #[ignore = "BUG: early return in method body not parsed"]
+    fn parse_early_return() {
+        let source = "\
+(T E lookup)
+(E One Two)
+(lookup [(find :@Self @Key String [Option String])])
+[lookup E [
+  (find :@Self @Key String [Option String] [
+    ^E/One
+  ])
+]]";
+        let module = parse(source);
+        assert_eq!(module.trait_impls.len(), 1);
+    }
+
+    // ── Iteration ───────────────────────────────────────────
+
+    #[test]
+    #[ignore = "BUG: iteration in method body not parsed"]
+    fn parse_iteration_body() {
+        let source = "\
+(T E iter)
+(iter [(each :@Self)])
+[iter E [
+  (each :@Self {| @Self.Items.Item [@Item] |})
+]]";
+        let module = parse(source);
+        assert_eq!(module.trait_impls.len(), 1);
+    }
+
+    // ── Multiple imports ────────────────────────────────────
+
+    #[test]
+    fn parse_multiple_import_blocks() {
+        let source = "\
+(App Element [Core Token] [Utils Helper])
+(Element Fire)";
+        let module = parse(source);
+        assert_eq!(module.imports.len(), 2);
+        assert_eq!(module.imports[0].source.0, "Core");
+        assert_eq!(module.imports[1].source.0, "Utils");
     }
 }
