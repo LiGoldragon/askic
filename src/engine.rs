@@ -333,7 +333,8 @@ impl Engine {
                 Ok(ParseValue::Literal(val, span))
             }
             Token::Float(s) => {
-                let val = sema_core::LiteralValue::Float(s.parse().unwrap_or(0.0));
+                let f: f64 = s.parse().map_err(|_| format!("invalid float: {}", s))?;
+                let val = sema_core::LiteralValue::Float(f);
                 cursor.advance();
                 Ok(ParseValue::Literal(val, span))
             }

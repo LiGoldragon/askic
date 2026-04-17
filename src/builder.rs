@@ -907,7 +907,7 @@ impl Builder {
                     name: TypeName(values[0].as_name()),
                     type_annotation: Some(type_ann[0].as_type_expr()),
                     value: Box::new(values[2].as_expr()),
-                    span: span_from_slice(&values),
+                    span: span_from_values(&values),
                 }
             }
             1 => {
@@ -916,7 +916,7 @@ impl Builder {
                     name: TypeName(values[0].as_name()),
                     type_annotation: None,
                     value: Box::new(values[1].as_expr()),
-                    span: span_from_slice(&values),
+                    span: span_from_values(&values),
                 }
             }
             _ => return Err(format!("unknown instance alt {}", alt_idx)),
@@ -945,7 +945,7 @@ impl Builder {
 
         Ok(ParseValue::Dialect(DialectValue::Mutation(Mutation {
             name, method, args,
-            span: span_from_slice(&items),
+            span: span_from_values(&items),
         })))
     }
 
@@ -1230,7 +1230,7 @@ impl Builder {
                         mutable: false,
                         span: values[2].as_span(),
                     }],
-                    span: span_from_slice(&values),
+                    span: span_from_values(&values),
                 }
             }
             1 => {
@@ -1243,7 +1243,11 @@ impl Builder {
             }
             2 => {
                 // "literal" → StringLitPattern
-                Pattern::StringLitPattern(String::new()) // TODO: capture literal content
+                let content = match &values[0] {
+                    ParseValue::Literal(LiteralValue::Str(s), _) => s.clone(),
+                    _ => String::new(),
+                };
+                Pattern::StringLitPattern(content)
             }
             _ => return Err(format!("unknown pattern alt {}", alt_idx)),
         };
@@ -1398,6 +1402,3 @@ fn span_from_values(values: &[ParseValue]) -> Span {
     Span { start, end }
 }
 
-fn span_from_slice(values: &[ParseValue]) -> Span {
-    span_from_values(values)
-}
