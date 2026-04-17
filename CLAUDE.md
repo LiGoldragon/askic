@@ -23,7 +23,7 @@ askic depends on corec's generated Rust types from aski-core
 to deserialize the embedded rkyv data. These are the same
 types askicc used to serialize it — aski-core is the input
 contract. askic also depends on corec's generated Rust types
-from sema-core to serialize its parse tree output — sema-core
+from aski to serialize its parse tree output — aski
 is the output contract that semac reads.
 
 Adding new syntax = adding .synth files + .aski domain
@@ -35,10 +35,10 @@ No askic code changes.
 ```
 corec     — .aski → Rust with rkyv derives (the bootstrap tool)
 aski-core — grammar .aski + corec → Rust rkyv types (askicc↔askic contract)
-sema-core — parse tree .aski + corec → Rust rkyv types (askic↔semac contract)
+aski — parse tree .aski + corec → Rust rkyv types (askic↔semac contract)
 askicc    — uses aski-core types → rkyv dialect-data-tree
-askic     — uses aski-core (input) + sema-core (output), embeds askicc's rkyv
-semac     — uses sema-core types only, independent of aski
+askic     — uses aski-core (input) + aski (output), embeds askicc's rkyv
+semac     — uses aski types only, independent of aski
 ```
 
 Six repos. They communicate through files.
@@ -48,7 +48,7 @@ strings (user names, literals). Sema has no unsized data.
 
 **askic does NOT generate Rust.** Only corec and semac generate
 Rust. askic reads rkyv data (aski-core types) and produces
-rkyv data (sema-core types).
+rkyv data (aski types).
 
 ## Rust Style
 
