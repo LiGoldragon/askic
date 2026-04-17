@@ -1,65 +1,55 @@
-# askic — The Aski Frontend
+# askic — The Aski Compiler
 
-askic is a self-contained binary that reads .aski source and
-produces an rkyv-serialized parse tree. It is one frontend for
-the sema pipeline.
+Reads .aski source, produces per-module .rkyv (ModuleDef).
+Generic dialect engine — no language-specific parsing logic.
+The dialect data from askicc IS the state machine.
 
-Sema is the thing — the universal typed binary format. Aski is
-one text notation for specifying sema. askic turns that notation
-into a parse tree. semac then produces true sema from that tree.
-Eventually aski may be replaced; askic would be replaced too.
-semac (the sema backend) is permanent and independent.
 
-## Dialect-Based State Machine
+## Engine Rewrite Design
 
-askic contains NO language-specific parsing logic. It is a
-generic dialect engine. askicc's rkyv domain-data-tree is
-embedded in the askic binary at build time, giving it the
-ability to read that version of aski's grammar. The engine
-executes the embedded grammar as a state machine against
-the token stream.
+The current engine has ParseValue::Seq (untyped bags), a
+separate Builder that guesses nesting depth, as_* methods
+that panic, and hard-coded alt_idx matching. All of this
+goes away.
 
-askic depends on corec's generated Rust types from aski-core
-to deserialize the embedded rkyv data. These are the same
-types askicc used to serialize it — aski-core is the input
-contract. askic also depends on corec's generated Rust types
-from aski to serialize its parse tree output — aski
-is the output contract that semac reads.
+### Typed enum, no Seq
 
-Adding new syntax = adding .synth files + .aski domain
-definitions in aski-core, then rebuilding askicc and askic.
-No askic code changes.
+Every matched value carries its type. `Typed::Expr(Expr)`,
+`Typed::PascalName(String, Span)`, `Typed::Exprs(Vec<Expr>)`.
+No untyped bags. `into_*` methods return Result, never panic.
 
-## The Pipeline
+### ItemTuple for delimited groups
 
-```
-corec     — .aski → Rust with rkyv derives (the bootstrap tool)
-aski-core — grammar .aski + corec → Rust rkyv types (askicc↔askic contract)
-aski — parse tree .aski + corec → Rust rkyv types (askic↔semac contract)
-askicc    — uses aski-core types → rkyv dialect-data-tree
-askic     — uses aski-core (input) + aski (output), embeds askicc's rkyv
-semac     — uses aski types only, independent of aski
-```
+Delimited items like `(@Enum <Enum>)` produce an ItemTuple
+(fixed-arity positional). Always immediately destructured
+by the dialect method via `tuple.take(idx)`. Never stored.
 
-Six repos. They communicate through files.
+### No separate builder
 
-**Only semac produces sema.** askic's output is rkyv — it has
-strings (user names, literals). Sema has no unsized data.
+Each DialectKind has a `parse_*` method that reads the
+dialect tree and constructs the output type directly.
+`parse_root` builds ModuleDef. `parse_enum` builds
+Vec<EnumChild>. `parse_type` builds TypeExpr.
 
-**askic does NOT generate Rust.** Only corec and semac generate
-Rust. askic reads rkyv data (aski-core types) and produces
-rkyv data (aski types).
+### LabelKind classification, not alt_idx
 
-## Rust Style
+The first LabelKind in an alternative's items tells the
+engine what construct it matched. Enum, Struct, Trait,
+Const, Newtype — from the dialect data, not from position.
+Reordering synth alternatives doesn't break the engine.
 
-**No free functions — methods on types always.** All Rust
-will eventually be rewritten in aski, which uses methods
-(traits + impls). `main` is the only exception.
+### Cardinality-driven looping
 
-Names describe WHAT IT IS structurally — not semantic meaning.
-Small files. Tests in separate files.
+Only alternatives with `*` or `+` cardinality loop.
+Leaf dialects (Type, Pattern, Param) match once and stop.
 
-## VCS
+### Typed collections from repeat
 
-Jujutsu (`jj`) mandatory. Always pass `-m`.
-Domain = any data def (enum + struct + newtype).
+`*<Expr>` → `Typed::Exprs(Vec<Expr>)`. The inner item's
+DialectKind determines the collection type. No Seq wrapping.
+
+
+## Dependencies
+
+synth-core (grammar types), aski-core (parse tree types),
+rkyv, logos. Dialect data embedded via DIALECT_DATA env var.
