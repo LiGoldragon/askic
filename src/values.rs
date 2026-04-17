@@ -46,6 +46,7 @@ pub enum DialectValue {
     TraitImpl(TraitImplDef),
     Instance(Instance),
     Mutation(Mutation),
+    IterationSource { source: Expr, binding: Pattern },
     StructConstruct { typ: TypeName, fields: Vec<FieldInit> },
     FfiDef(FfiDef),
     Methods(Vec<MethodDef>),

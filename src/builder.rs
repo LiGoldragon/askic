@@ -49,6 +49,7 @@ impl Builder {
             ArchivedDialectKind::Pattern => self.build_pattern(rules),
             ArchivedDialectKind::Loop => self.build_loop(rules),
             ArchivedDialectKind::Process => self.build_process(rules),
+            ArchivedDialectKind::IterationSource => self.build_iteration_source(rules),
             ArchivedDialectKind::StructConstruct => self.build_struct_construct(rules),
             ArchivedDialectKind::Ffi => self.build_ffi(rules),
             _ => Err("no builder for dialect".into()),
@@ -754,11 +755,16 @@ impl Builder {
                 Expr::Loop(inner[0].as_loop_expr())
             }
             8 => {
-                // {|<Expr> [<Body>]|} → Iteration
+                // {| <IterationSource> [<Body>] |} → Iteration
                 let inner = values[0].as_seq();
+                let (source, binding) = match &inner[0] {
+                    ParseValue::Dialect(DialectValue::IterationSource { source, binding }) =>
+                        (source.clone(), binding.clone()),
+                    _ => (inner[0].as_expr(), Pattern::Wildcard),
+                };
                 Expr::Iteration(Iteration {
-                    binding: Pattern::Wildcard, // TODO: iteration binding
-                    source: Box::new(inner[0].as_expr()),
+                    binding,
+                    source: Box::new(source),
                     body: inner[1].as_block(),
                 })
             }
@@ -821,11 +827,16 @@ impl Builder {
                 })
             }
             3 => {
-                // {|<Expr> [<Body>]|} → Iteration
+                // {| <IterationSource> [<Body>] |} → Iteration
                 let inner = values[0].as_seq();
+                let (source, binding) = match &inner[0] {
+                    ParseValue::Dialect(DialectValue::IterationSource { source, binding }) =>
+                        (source.clone(), binding.clone()),
+                    _ => (inner[0].as_expr(), Pattern::Wildcard),
+                };
                 Statement::Iteration(Iteration {
-                    binding: Pattern::Wildcard, // TODO: iteration binding
-                    source: Box::new(inner[0].as_expr()),
+                    binding,
+                    source: Box::new(source),
                     body: inner[1].as_block(),
                 })
             }
@@ -1046,9 +1057,14 @@ impl Builder {
             2 => MethodBody::Loop(body_values[0].as_seq()[0].as_loop_expr()),
             3 => {
                 let inner = body_values[0].as_seq();
+                let (source, binding) = match &inner[0] {
+                    ParseValue::Dialect(DialectValue::IterationSource { source, binding }) =>
+                        (source.clone(), binding.clone()),
+                    _ => (inner[0].as_expr(), Pattern::Wildcard),
+                };
                 MethodBody::Iteration(Iteration {
-                    binding: Pattern::Wildcard,
-                    source: Box::new(inner[0].as_expr()),
+                    binding,
+                    source: Box::new(source),
                     body: inner[1].as_block(),
                 })
             }
@@ -1284,6 +1300,26 @@ impl Builder {
         };
 
         Ok(ParseValue::Dialect(DialectValue::Block(Block { statements: stmts, tail: None })))
+    }
+
+    fn build_iteration_source(&self, rules: Vec<MatchedRule>) -> Result<ParseValue, String> {
+        // IterationSource.synth: Sequential <Expr>.@Binding
+        let items = match rules.into_iter().next() {
+            Some(MatchedRule::Sequential(v)) => v,
+            _ => return Err("iteration source expected sequential".into()),
+        };
+
+        // items: [Dialect(Expr), Token(dot), Name(binding)]
+        let source = items[0].as_expr();
+        // items[1] = Token(dot)
+        let binding_name = TypeName(items[2].as_name());
+        let binding = Pattern::IdentBind {
+            name: binding_name,
+            mutable: false,
+            span: items[2].as_span(),
+        };
+
+        Ok(ParseValue::Dialect(DialectValue::IterationSource { source, binding }))
     }
 
     fn build_struct_construct(&self, rules: Vec<MatchedRule>) -> Result<ParseValue, String> {
