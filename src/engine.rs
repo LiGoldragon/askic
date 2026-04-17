@@ -98,6 +98,15 @@ impl Engine {
     ) -> Result<MatchedRule, String> {
         let mut collected: Vec<(usize, Vec<ParseValue>)> = Vec::new();
 
+        // Should we loop (repeated match) or match once?
+        // If any alternative has * or + cardinality, the dialect expects
+        // repeated matches (e.g., Root with multiple constructs).
+        // If all alternatives have One or Optional cardinality, match once.
+        let should_repeat = alternatives.iter().any(|a| {
+            matches!(a.cardinality,
+                ArchivedCardinality::ZeroOrMore | ArchivedCardinality::OneOrMore)
+        });
+
         loop {
             let mut matched_any = false;
 
@@ -116,10 +125,7 @@ impl Engine {
             }
 
             if !matched_any { break; }
-
-            // Check cardinality — if any alt was OneOrMore or ZeroOrMore, keep looping.
-            // If all remaining are Optional or One, and we matched, we're done for One/Optional.
-            // For simplicity: always loop. The break condition is "no alt matched."
+            if !should_repeat { break; }
         }
 
         if collected.is_empty() {

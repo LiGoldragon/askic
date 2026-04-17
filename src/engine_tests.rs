@@ -340,7 +340,6 @@ Counter U32
     // ── FFI ─────────────────────────────────────────────────
 
     #[test]
-    #[ignore = "BUG: FFI block not producing FfiDef"]
     fn parse_ffi_declaration() {
         let source = "\
 (T E)
@@ -387,7 +386,6 @@ Counter U32
     // ── Newtype with application ────────────────────────────
 
     #[test]
-    #[ignore = "BUG: multiple newtypes after other constructs not parsed"]
     fn parse_multiple_newtypes() {
         let source = "\
 (T E)
@@ -497,7 +495,6 @@ Counter U32
     }
 
     #[test]
-    #[ignore = "BUG: engine ordered choice — two consecutive newtypes produce 0. Newtype + Enum works. Root cause in engine's match_repeated_choice"]
     fn parse_two_newtypes() {
         let module = parse("(T E)\nCounter U32\nMeters F64");
         assert_eq!(module.newtypes.len(), 2);
