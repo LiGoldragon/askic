@@ -37,10 +37,8 @@ pub enum DialectValue {
     LoopExpr(LoopExpr),
     Iteration(Iteration),
     Param(Param),
-    Params(Vec<Param>),
     MethodSig(MethodSig),
     MethodDef(MethodDef),
-    MethodBody(MethodBody),
     TraitDecl(TraitDeclDef),
     TraitImpl(TraitImplDef),
     Instance(Instance),
@@ -49,8 +47,6 @@ pub enum DialectValue {
     StructConstruct { typ: TypeName, fields: Vec<FieldInit> },
     FfiDef(FfiDef),
     Methods(Vec<MethodDef>),
-    GenericParamDef(GenericParamDef),
-    Signatures(Vec<MethodSig>),
 }
 
 /// What a rule match produces.
@@ -127,13 +123,6 @@ impl ParseValue {
         match self {
             ParseValue::Dialect(DialectValue::Iteration(i)) => i.clone(),
             other => panic!("expected Iteration, got {:?}", other),
-        }
-    }
-
-    pub fn as_method_body(&self) -> MethodBody {
-        match self {
-            ParseValue::Dialect(DialectValue::MethodBody(m)) => m.clone(),
-            other => panic!("expected MethodBody, got {:?}", other),
         }
     }
 

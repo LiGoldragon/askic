@@ -163,7 +163,7 @@ impl Builder {
                         module.enums.push(EnumDef {
                             name, visibility: Visibility::Public,
                             generic_params: vec![], derives: vec![],
-                            children, span: span_from_values(inner),
+                            children, span: Self::span_from_values(inner),
                         });
                     }
                     1 => {
@@ -174,7 +174,7 @@ impl Builder {
                             ParseValue::Dialect(DialectValue::TraitDecl(td)) => {
                                 let mut td = td.clone();
                                 td.name = name;
-                                td.span = span_from_values(inner);
+                                td.span = Self::span_from_values(inner);
                                 module.trait_decls.push(td);
                             }
                             _ => return Err("expected trait decl".into()),
@@ -188,7 +188,7 @@ impl Builder {
                             ParseValue::Dialect(DialectValue::TraitImpl(ti)) => {
                                 let mut ti = ti.clone();
                                 ti.trait_name = name;
-                                ti.span = span_from_values(inner);
+                                ti.span = Self::span_from_values(inner);
                                 module.trait_impls.push(ti);
                             }
                             _ => return Err("expected trait impl".into()),
@@ -205,7 +205,7 @@ impl Builder {
                         module.structs.push(StructDef {
                             name, visibility: Visibility::Public,
                             generic_params: vec![], derives: vec![],
-                            children, span: span_from_values(inner),
+                            children, span: Self::span_from_values(inner),
                         });
                     }
                     4 => {
@@ -216,7 +216,7 @@ impl Builder {
                         let value = inner[2].as_literal();
                         module.consts.push(ConstDef {
                             name, visibility: Visibility::Public,
-                            typ, value, span: span_from_values(inner),
+                            typ, value, span: Self::span_from_values(inner),
                         });
                     }
                     5 => {
@@ -227,7 +227,7 @@ impl Builder {
                             ParseValue::Dialect(DialectValue::FfiDef(f)) => {
                                 let mut f = f.clone();
                                 f.library = name;
-                                f.span = span_from_values(inner);
+                                f.span = Self::span_from_values(inner);
                                 module.ffi.push(f);
                             }
                             _ => return Err("expected ffi def".into()),
@@ -354,7 +354,7 @@ impl Builder {
                     EnumChild::DataVariant {
                         name: VariantName(inner[0].as_name()),
                         payload: inner[1].as_type_expr(),
-                        span: span_from_values(inner),
+                        span: Self::span_from_values(inner),
                     }
                 }
                 2 => {
@@ -375,7 +375,7 @@ impl Builder {
                     EnumChild::StructVariant {
                         name: VariantName(inner[0].as_name()),
                         fields: children,
-                        span: span_from_values(inner),
+                        span: Self::span_from_values(inner),
                     }
                 }
                 3 => {
@@ -389,7 +389,7 @@ impl Builder {
                     EnumChild::NestedEnum(EnumDef {
                         name, visibility: Visibility::Public,
                         generic_params: vec![], derives: vec![],
-                        children: nested_children, span: span_from_values(inner),
+                        children: nested_children, span: Self::span_from_values(inner),
                     })
                 }
                 4 => {
@@ -403,7 +403,7 @@ impl Builder {
                     EnumChild::NestedStruct(StructDef {
                         name, visibility: Visibility::Public,
                         generic_params: vec![], derives: vec![],
-                        children: nested_children, span: span_from_values(inner),
+                        children: nested_children, span: Self::span_from_values(inner),
                     })
                 }
                 _ => return Err(format!("unknown enum alt {}", alt_idx)),
@@ -433,7 +433,7 @@ impl Builder {
                         name: FieldName(inner[0].as_name()),
                         visibility: Visibility::Public,
                         typ: inner[1].as_type_expr(),
-                        span: span_from_values(inner),
+                        span: Self::span_from_values(inner),
                     }
                 }
                 1 => {
@@ -455,7 +455,7 @@ impl Builder {
                     StructChild::NestedEnum(EnumDef {
                         name, visibility: Visibility::Public,
                         generic_params: vec![], derives: vec![],
-                        children: nested_children, span: span_from_values(inner),
+                        children: nested_children, span: Self::span_from_values(inner),
                     })
                 }
                 3 => {
@@ -469,7 +469,7 @@ impl Builder {
                     StructChild::NestedStruct(StructDef {
                         name, visibility: Visibility::Public,
                         generic_params: vec![], derives: vec![],
-                        children: nested_children, span: span_from_values(inner),
+                        children: nested_children, span: Self::span_from_values(inner),
                     })
                 }
                 _ => return Err(format!("unknown struct alt {}", alt_idx)),
@@ -854,7 +854,7 @@ impl Builder {
                 Statement::LocalTypeDecl {
                     name: TypeName(inner[0].as_name()),
                     typ: inner[1].as_type_expr(),
-                    span: span_from_values(inner),
+                    span: Self::span_from_values(inner),
                 }
             }
             5 => {
@@ -915,7 +915,7 @@ impl Builder {
                     name: TypeName(values[0].as_name()),
                     type_annotation: Some(type_ann[0].as_type_expr()),
                     value: Box::new(values[2].as_expr()),
-                    span: span_from_values(&values),
+                    span: Self::span_from_values(&values),
                 }
             }
             1 => {
@@ -924,7 +924,7 @@ impl Builder {
                     name: TypeName(values[0].as_name()),
                     type_annotation: None,
                     value: Box::new(values[1].as_expr()),
-                    span: span_from_values(&values),
+                    span: Self::span_from_values(&values),
                 }
             }
             _ => return Err(format!("unknown instance alt {}", alt_idx)),
@@ -953,7 +953,7 @@ impl Builder {
 
         Ok(ParseValue::Dialect(DialectValue::Mutation(Mutation {
             name, method, args,
-            span: span_from_values(&items),
+            span: Self::span_from_values(&items),
         })))
     }
 
@@ -1238,7 +1238,7 @@ impl Builder {
                         mutable: false,
                         span: values[2].as_span(),
                     }],
-                    span: span_from_values(&values),
+                    span: Self::span_from_values(&values),
                 }
             }
             1 => {
@@ -1388,9 +1388,15 @@ impl Builder {
             span: Span { start: 0, end: 0 },
         })))
     }
+
+    fn span_from_values(values: &[ParseValue]) -> Span {
+        let start = values.first().map(|v| v.as_span().start).unwrap_or(0);
+        let end = values.last().map(|v| v.as_span().end).unwrap_or(0);
+        Span { start, end }
+    }
 }
 
-// ── Helper types and functions ──────────────────────────────
+// ── Helper types ──────────────────────────────
 
 /// Binary operation kind for the expression builder.
 enum BinOp { Or, And }
@@ -1402,11 +1408,5 @@ impl BinOp {
             BinOp::And => Expr::BinAnd { left, right, span },
         }
     }
-}
-
-fn span_from_values(values: &[ParseValue]) -> Span {
-    let start = values.first().map(|v| v.as_span().start).unwrap_or(0);
-    let end = values.last().map(|v| v.as_span().end).unwrap_or(0);
-    Span { start, end }
 }
 
