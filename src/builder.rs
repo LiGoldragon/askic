@@ -263,45 +263,38 @@ impl Builder {
     // ── Module ──────────────────────────────────────────────
 
     fn build_module(&self, rules: Vec<MatchedRule>) -> Result<ParseValue, String> {
-        // Module.synth has 3 sequential rules:
-        //   *@ObjectExport
-        //   *@actionExport
-        //   *[:Module *:ObjectImport *:actionImport]
+        // Module.synth is ONE sequential rule with 3 items:
+        //   *@ObjectExport *@actionExport *[:Module *:ObjectImport *:actionImport]
+        // (synth newlines are whitespace — all items are in one rule)
         let mut exports = Vec::new();
         let mut imports = Vec::new();
 
-        // Rule 0: *@ObjectExport
         if let Some(MatchedRule::Sequential(ref items)) = rules.get(0) {
+            // items[0]: *@ObjectExport → Seq of PascalCase names
             if let Some(ParseValue::Seq(ref names)) = items.get(0) {
                 for n in names {
                     exports.push(ExportItem::Type_(TypeName(n.as_name())));
                 }
             }
-        }
 
-        // Rule 1: *@actionExport
-        if let Some(MatchedRule::Sequential(ref items)) = rules.get(1) {
-            if let Some(ParseValue::Seq(ref names)) = items.get(0) {
+            // items[1]: *@actionExport → Seq of camelCase names
+            if let Some(ParseValue::Seq(ref names)) = items.get(1) {
                 for n in names {
                     exports.push(ExportItem::Trait(TraitName(n.as_name())));
                 }
             }
-        }
 
-        // Rule 2: *[:Module *:ObjectImport *:actionImport]
-        if let Some(MatchedRule::Sequential(ref items)) = rules.get(2) {
-            if let Some(ParseValue::Seq(ref import_blocks)) = items.get(0) {
+            // items[2]: *[:Module *:ObjectImport *:actionImport] → Seq of import blocks
+            if let Some(ParseValue::Seq(ref import_blocks)) = items.get(2) {
                 for block in import_blocks {
                     let inner = block.as_seq();
                     let source = TypeName(inner[0].as_name());
                     let mut names = Vec::new();
-                    // inner[1] = Seq of object imports
                     if let ParseValue::Seq(ref objs) = inner[1] {
                         for n in objs {
                             names.push(ImportItem::Type_(TypeName(n.as_name())));
                         }
                     }
-                    // inner[2] = Seq of action imports
                     if let ParseValue::Seq(ref acts) = inner[2] {
                         for n in acts {
                             names.push(ImportItem::Trait(TraitName(n.as_name())));
