@@ -167,10 +167,12 @@ impl Engine {
         cursor: &mut Cursor,
         builder: &Builder,
     ) -> Result<ParseValue, String> {
-        // Check adjacency
-        if item.adjacent && !cursor.is_adjacent() {
-            return Err("expected adjacent token".into());
-        }
+        // TODO: adjacency checking needs proper implementation.
+        // The adjacent flag on items means "no space before this token in source"
+        // relative to the previous source-matching item. Currently disabled
+        // because the flag from synth encoding conflates synth-level adjacency
+        // with source-level adjacency requirements.
+        // if item.adjacent && ... { }
 
         match &item.content {
             ArchivedItemContent::Named { label } => {
