@@ -67,7 +67,7 @@
             chmod -R +w $sourceRoot/flake-crates
           '';
           # askicc's rkyv output — embedded at build time
-          DIALECT_DATA = "${dialect-data}";
+          DIALECT_DATA = "${dialect-data}/dialects.rkyv";
         };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -91,7 +91,7 @@
 
         devShells.default = craneLib.devShell {
           packages = [ pkgs.rust-analyzer ];
-          DIALECT_DATA = "${dialect-data}";
+          DIALECT_DATA = "${dialect-data}/dialects.rkyv";
         };
       }
     );

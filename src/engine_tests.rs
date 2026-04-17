@@ -4,14 +4,22 @@ mod tests {
     use crate::engine::Engine;
     use sema_core::*;
 
+    fn load_dialect_data() -> &'static [u8] {
+        // Try DIALECT_DATA env var first (set by nix build)
+        if let Ok(path) = std::env::var("DIALECT_DATA") {
+            let bytes = std::fs::read(&path).expect("failed to read DIALECT_DATA");
+            return Box::leak(bytes.into_boxed_slice());
+        }
+        // Local dev fallback
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../askicc/generated/dialects.rkyv");
+        let bytes = std::fs::read(&path).expect("dialect data not found — run askicc first");
+        Box::leak(bytes.into_boxed_slice())
+    }
+
     fn parse(source: &str) -> Vec<RootChild> {
         let tokens = lex(source).expect("lex failed");
-        let data = std::fs::read(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../askicc/generated/dialects.rkyv")
-        ).expect("dialect data not found — run askicc first");
-        let data: &'static [u8] = Box::leak(data.into_boxed_slice());
-        let engine = Engine::new(data);
+        let engine = Engine::new(load_dialect_data());
         engine.parse(&tokens).expect("parse failed")
     }
 
@@ -304,15 +312,12 @@ Counter U32
 
     #[test]
     fn parse_v017_spec() {
-        let source = std::fs::read_to_string(
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("../aski/spec/syntax-v017.aski")
-        );
-        if let Ok(source) = source {
-            let children = parse(&source);
-            assert!(children.len() >= 7, "expected at least 7 root children, got {}", children.len());
-            assert!(matches!(&children[0], RootChild::Module(_)));
-        }
-        // Skip if file not found (CI without sibling repos)
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../aski/spec/syntax-v017.aski");
+        if !path.exists() { return; } // Skip if sibling repo not available
+        let source = std::fs::read_to_string(&path).unwrap();
+        let children = parse(&source);
+        assert!(children.len() >= 7, "expected at least 7 root children, got {}", children.len());
+        assert!(matches!(&children[0], RootChild::Module(_)));
     }
 }
