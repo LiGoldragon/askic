@@ -9,15 +9,15 @@
     };
     crane.url = "github:ipetkov/crane";
     flake-utils.url = "github:numtide/flake-utils";
-    aski-core = {
-      url = "github:LiGoldragon/aski-core";
+    synth-core = {
+      url = "github:LiGoldragon/synth-core";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.fenix.follows = "fenix";
       inputs.crane.follows = "crane";
       inputs.flake-utils.follows = "flake-utils";
     };
-    aski = {
-      url = "github:Criome/aski";
+    aski-core = {
+      url = "github:Criome/aski-core";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.fenix.follows = "fenix";
       inputs.crane.follows = "crane";
@@ -29,12 +29,12 @@
       inputs.fenix.follows = "fenix";
       inputs.crane.follows = "crane";
       inputs.flake-utils.follows = "flake-utils";
-      inputs.aski-core.follows = "aski-core";
+      inputs.synth-core.follows = "synth-core";
     };
   };
 
   outputs = { self, nixpkgs, fenix, crane, flake-utils,
-              aski-core, aski, askicc, ... }:
+              synth-core, aski-core, askicc, ... }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -42,8 +42,8 @@
         craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
 
         # rkyv contract types
+        synth-core-source = synth-core.packages.${system}.source;
         aski-core-source = aski-core.packages.${system}.source;
-        aski-source = aski.packages.${system}.source;
 
         # askicc's rkyv dialect-data-tree — embedded via include_bytes!
         dialect-data = askicc.packages.${system}.dialect-data;
@@ -59,14 +59,12 @@
           inherit src;
           pname = "askic";
           version = "0.17.0";
-          # Populate flake-crates/ for Cargo path deps
           postUnpack = ''
             mkdir -p $sourceRoot/flake-crates
+            cp -r ${synth-core-source} $sourceRoot/flake-crates/synth-core
             cp -r ${aski-core-source} $sourceRoot/flake-crates/aski-core
-            cp -r ${aski-source} $sourceRoot/flake-crates/aski
             chmod -R +w $sourceRoot/flake-crates
           '';
-          # askicc's rkyv output — embedded at build time
           DIALECT_DATA = "${dialect-data}/dialects.rkyv";
         };
 
