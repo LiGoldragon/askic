@@ -880,30 +880,1146 @@ impl Machine {
         Ok(Typed::Block(Block { statements, tail }))
     }
 
-    // Placeholder stubs for dialects not yet ported.
-    // These will be filled in as we go.
+    // ── Root ─────────────────────────────────────────────────
 
-    fn parse_root(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("root not yet ported".into()) }
-    fn parse_module(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("module not yet ported".into()) }
-    fn parse_enum(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("enum not yet ported".into()) }
-    fn parse_struct(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("struct not yet ported".into()) }
-    fn parse_statement(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("statement not yet ported".into()) }
-    fn parse_instance(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("instance not yet ported".into()) }
-    fn parse_mutation(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("mutation not yet ported".into()) }
-    fn parse_method(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("method not yet ported".into()) }
-    fn parse_trait_decl(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("trait_decl not yet ported".into()) }
-    fn parse_trait_impl(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("trait_impl not yet ported".into()) }
-    fn parse_type_impl(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("type_impl not yet ported".into()) }
-    fn parse_match(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("match not yet ported".into()) }
-    fn parse_loop(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("loop not yet ported".into()) }
-    fn parse_process(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("process not yet ported".into()) }
-    fn parse_iteration_source(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("iteration_source not yet ported".into()) }
-    fn parse_struct_construct(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("struct_construct not yet ported".into()) }
-    fn parse_ffi(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("ffi not yet ported".into()) }
-    fn parse_expr_binary(&self, _d: &ArchivedDialect, _c: &mut Cursor, _op: BinOp) -> Result<Typed, String> { Err("expr_binary not yet ported".into()) }
-    fn parse_expr_compare(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("expr_compare not yet ported".into()) }
-    fn parse_expr_add(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("expr_add not yet ported".into()) }
-    fn parse_expr_mul(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("expr_mul not yet ported".into()) }
-    fn parse_expr_atom(&self, _d: &ArchivedDialect, _c: &mut Cursor) -> Result<Typed, String> { Err("expr_atom not yet ported".into()) }
-    fn parse_postfix(&self, _c: &mut Cursor) -> Result<Typed, String> { Err("postfix not yet ported".into()) }
+    fn parse_root(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // Rule 0: Sequential (@Module <Module>)
+        let seq_items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("Root rule 0 expected Sequential".into()),
+        };
+        let mut group = self.match_delimited_item(&seq_items[0], cursor)?;
+        let (module_name, name_span) = group.take(0).into_pascal_name()?;
+        let mut module = group.take(1).into_module()?;
+        module.name = TypeName(module_name);
+        module.span = name_span;
+
+        // Rule 1: OrderedChoice (repeated)
+        let alternatives = match &dialect.rules[1] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("Root rule 1 expected OrderedChoice".into()),
+        };
+
+        let has_repeat = alternatives.iter().any(|a| {
+            matches!(a.cardinality,
+                ArchivedCardinality::ZeroOrMore | ArchivedCardinality::OneOrMore)
+        });
+
+        loop {
+            let mut matched = false;
+            for alt in alternatives.iter() {
+                let saved = cursor.pos();
+                match self.try_root_alt(alt, cursor, &mut module) {
+                    Ok(()) => { matched = true; break; }
+                    Err(_) => { cursor.restore(saved); }
+                }
+            }
+            if !matched { break; }
+            if !has_repeat { break; }
+        }
+
+        Ok(Typed::Module(module))
+    }
+
+    fn try_root_alt(
+        &self,
+        alt: &ArchivedAlternative,
+        cursor: &mut Cursor,
+        module: &mut ModuleDef,
+    ) -> Result<(), String> {
+        let label_kind = Self::first_label_kind(&alt.items)
+            .ok_or("root alt has no label")?;
+
+        match label_kind {
+            ArchivedLabelKind::Enum => {
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let children = group.take(1).into_enum_children()?;
+                module.enums.push(EnumDef {
+                    name: TypeName(name), visibility: Visibility::Public,
+                    generic_params: vec![], derives: vec![], children, span,
+                });
+                Ok(())
+            }
+            ArchivedLabelKind::Struct => {
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let children = group.take(1).into_struct_children()?;
+                module.structs.push(StructDef {
+                    name: TypeName(name), visibility: Visibility::Public,
+                    generic_params: vec![], derives: vec![], children, span,
+                });
+                Ok(())
+            }
+            ArchivedLabelKind::Trait => {
+                let delim = Self::outer_delim_kind(&alt.items);
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_camel_name()?;
+                match delim {
+                    Some(ArchivedDelimKind::Paren) => {
+                        let mut td = group.take(1).into_trait_decl()?;
+                        td.name = TraitName(name);
+                        td.span = span;
+                        module.trait_decls.push(td);
+                    }
+                    Some(ArchivedDelimKind::Bracket) => {
+                        let mut ti = group.take(1).into_trait_impl()?;
+                        ti.trait_name = TraitName(name);
+                        ti.span = span;
+                        module.trait_impls.push(ti);
+                    }
+                    _ => return Err("unexpected trait delimiter".into()),
+                }
+                Ok(())
+            }
+            ArchivedLabelKind::Const => {
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, name_span) = group.take(0).into_pascal_name()?;
+                let typ = group.take(1).into_type_expr()?;
+                let (value, val_span) = group.take(2).into_literal()?;
+                module.consts.push(ConstDef {
+                    name: TypeName(name), visibility: Visibility::Public,
+                    typ, value,
+                    span: Span { start: name_span.start, end: val_span.end },
+                });
+                Ok(())
+            }
+            ArchivedLabelKind::Ffi => {
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let mut ffi = group.take(1).into_ffi_def()?;
+                ffi.library = TypeName(name);
+                ffi.span = span;
+                module.ffi.push(ffi);
+                Ok(())
+            }
+            ArchivedLabelKind::Newtype => {
+                // @Newtype <Type> — two items, not delimited
+                let (name, span) = self.match_item(&alt.items[0], cursor)?
+                    .into_pascal_name()?;
+                let wraps = self.match_item(&alt.items[1], cursor)?
+                    .into_type_expr()?;
+                module.newtypes.push(NewtypeDef {
+                    name: TypeName(name), visibility: Visibility::Public,
+                    generic_params: vec![], derives: vec![], wraps, span,
+                });
+                Ok(())
+            }
+            _ => {
+                // Process [|...|] — check if it's a BracketPipe
+                if let Some(ArchivedDelimKind::BracketPipe) = Self::outer_delim_kind(&alt.items) {
+                    let group = self.match_delimited_item(&alt.items[0], cursor)?;
+                    let block = group.0.into_iter().next()
+                        .ok_or("empty process")?.into_block()?;
+                    module.process = Some(block);
+                    return Ok(());
+                }
+                Err(format!("unknown root construct"))
+            }
+        }
+    }
+
+    // ── Module ──────────────────────────────────────────────
+
+    fn parse_module(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // Module.synth is ONE sequential rule with 3 items:
+        // *@ObjectExport *@actionExport *[:Module *:ObjectImport *:actionImport]
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("Module expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let mut exports = Vec::new();
+        let mut imports = Vec::new();
+
+        // items[0]: *@ObjectExport
+        if let Ok(names) = tuple.take(0).into_pascal_names() {
+            for (name, _) in names {
+                exports.push(ExportItem::Type_(TypeName(name)));
+            }
+        }
+
+        // items[1]: *@actionExport
+        if let Ok(names) = tuple.take(1).into_camel_names() {
+            for (name, _) in names {
+                exports.push(ExportItem::Trait(TraitName(name)));
+            }
+        }
+
+        // items[2]: *[:Module *:ObjectImport *:actionImport]
+        if let Ok(groups) = tuple.take(2).into_group() {
+            for item in groups.0 {
+                if let Ok(mut g) = item.into_group() {
+                    let (source, _) = g.take(0).into_pascal_name()?;
+                    let mut names = Vec::new();
+                    if let Ok(objs) = g.take(1).into_pascal_names() {
+                        for (n, _) in objs {
+                            names.push(ImportItem::Type_(TypeName(n)));
+                        }
+                    }
+                    if let Ok(acts) = g.take(2).into_camel_names() {
+                        for (n, _) in acts {
+                            names.push(ImportItem::Trait(TraitName(n)));
+                        }
+                    }
+                    imports.push(ModuleImport { source: TypeName(source), names });
+                }
+            }
+        }
+
+        Ok(Typed::Module(ModuleDef {
+            name: TypeName(String::new()),
+            visibility: Visibility::Public,
+            exports, imports,
+            enums: vec![], structs: vec![], newtypes: vec![],
+            consts: vec![], trait_decls: vec![], trait_impls: vec![],
+            ffi: vec![], process: None,
+            span: Span { start: 0, end: 0 },
+        }))
+    }
+
+    // ── Enum ────────────────────────────────────────────────
+
+    fn parse_enum(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        let alternatives = match &dialect.rules[0] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("Enum expected OrderedChoice".into()),
+        };
+
+        let mut children = Vec::new();
+        loop {
+            let mut matched = false;
+            for alt in alternatives.iter() {
+                let saved = cursor.pos();
+                match self.try_enum_alt(alt, cursor) {
+                    Ok(child) => { children.push(child); matched = true; break; }
+                    Err(_) => { cursor.restore(saved); }
+                }
+            }
+            if !matched { break; }
+        }
+        Ok(Typed::EnumChildren(children))
+    }
+
+    fn try_enum_alt(
+        &self,
+        alt: &ArchivedAlternative,
+        cursor: &mut Cursor,
+    ) -> Result<EnumChild, String> {
+        let label = Self::first_label_kind(&alt.items);
+        let delim = Self::outer_delim_kind(&alt.items);
+
+        match (label, delim) {
+            (Some(ArchivedLabelKind::Variant), None) => {
+                // *@Variant → bare
+                let (name, span) = self.match_item(&alt.items[0], cursor)?
+                    .into_pascal_name()?;
+                Ok(EnumChild::Variant { name: VariantName(name), span })
+            }
+            (Some(ArchivedLabelKind::Variant), Some(ArchivedDelimKind::Paren)) => {
+                // *(@Variant <Type>) → data-carrying
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let payload = group.take(1).into_type_expr()?;
+                Ok(EnumChild::DataVariant { name: VariantName(name), payload, span })
+            }
+            (Some(ArchivedLabelKind::Variant), Some(ArchivedDelimKind::Brace)) => {
+                // *{@Variant <Struct>} → struct variant
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let struct_children = group.take(1).into_struct_children()?;
+                let fields = struct_children.into_iter().filter_map(|c| {
+                    match c {
+                        StructChild::TypedField { name, visibility, typ, span } =>
+                            Some(StructField { name, visibility, typ, span }),
+                        _ => None,
+                    }
+                }).collect();
+                Ok(EnumChild::StructVariant { name: VariantName(name), fields, span })
+            }
+            (Some(ArchivedLabelKind::Enum), Some(ArchivedDelimKind::ParenPipe)) => {
+                // *(| @Enum <Enum> |) → nested enum
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let children = group.take(1).into_enum_children()?;
+                Ok(EnumChild::NestedEnum(EnumDef {
+                    name: TypeName(name), visibility: Visibility::Public,
+                    generic_params: vec![], derives: vec![], children, span,
+                }))
+            }
+            (Some(ArchivedLabelKind::Struct), Some(ArchivedDelimKind::BracePipe)) => {
+                // *{| @Struct <Struct> |} → nested struct
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let children = group.take(1).into_struct_children()?;
+                Ok(EnumChild::NestedStruct(StructDef {
+                    name: TypeName(name), visibility: Visibility::Public,
+                    generic_params: vec![], derives: vec![], children, span,
+                }))
+            }
+            _ => Err("unknown enum alternative".into()),
+        }
+    }
+
+    // ── Struct ──────────────────────────────────────────────
+
+    fn parse_struct(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        let alternatives = match &dialect.rules[0] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("Struct expected OrderedChoice".into()),
+        };
+
+        let mut children = Vec::new();
+        loop {
+            let mut matched = false;
+            for alt in alternatives.iter() {
+                let saved = cursor.pos();
+                match self.try_struct_alt(alt, cursor) {
+                    Ok(child) => { children.push(child); matched = true; break; }
+                    Err(_) => { cursor.restore(saved); }
+                }
+            }
+            if !matched { break; }
+        }
+        Ok(Typed::StructChildren(children))
+    }
+
+    fn try_struct_alt(
+        &self,
+        alt: &ArchivedAlternative,
+        cursor: &mut Cursor,
+    ) -> Result<StructChild, String> {
+        let label = Self::first_label_kind(&alt.items);
+        let delim = Self::outer_delim_kind(&alt.items);
+
+        match (label, delim) {
+            (Some(ArchivedLabelKind::Field), Some(ArchivedDelimKind::Paren)) => {
+                // *(@Field <Type>) → typed field
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let typ = group.take(1).into_type_expr()?;
+                Ok(StructChild::TypedField {
+                    name: FieldName(name), visibility: Visibility::Public, typ, span,
+                })
+            }
+            (Some(ArchivedLabelKind::Field), None) => {
+                // *@Field → self-typed field
+                let (name, span) = self.match_item(&alt.items[0], cursor)?
+                    .into_pascal_name()?;
+                Ok(StructChild::SelfTypedField {
+                    name: FieldName(name), visibility: Visibility::Public, span,
+                })
+            }
+            (Some(ArchivedLabelKind::Enum), Some(ArchivedDelimKind::ParenPipe)) => {
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let children = group.take(1).into_enum_children()?;
+                Ok(StructChild::NestedEnum(EnumDef {
+                    name: TypeName(name), visibility: Visibility::Public,
+                    generic_params: vec![], derives: vec![], children, span,
+                }))
+            }
+            (Some(ArchivedLabelKind::Struct), Some(ArchivedDelimKind::BracePipe)) => {
+                let mut group = self.match_delimited_item(&alt.items[0], cursor)?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let children = group.take(1).into_struct_children()?;
+                Ok(StructChild::NestedStruct(StructDef {
+                    name: TypeName(name), visibility: Visibility::Public,
+                    generic_params: vec![], derives: vec![], children, span,
+                }))
+            }
+            _ => Err("unknown struct alternative".into()),
+        }
+    }
+
+    // ── Expression dialects ─────────────────────────────────
+
+    fn parse_expr_binary(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+        _op: BinOp,
+    ) -> Result<Typed, String> {
+        let alternatives = match &dialect.rules[0] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("binary expr expected OrderedChoice".into()),
+        };
+
+        let last_idx = alternatives.len() - 1;
+        for (idx, alt) in alternatives.iter().enumerate() {
+            if idx == last_idx {
+                // Fallthrough to lower precedence
+                return self.match_item(&alt.items[0], cursor);
+            }
+            let saved = cursor.pos();
+            match self.try_binary_alt(alt, cursor) {
+                Ok(expr) => return Ok(Typed::Expr(expr)),
+                Err(_) => { cursor.restore(saved); }
+            }
+        }
+        Err("no binary expr matched".into())
+    }
+
+    fn try_binary_alt(
+        &self,
+        alt: &ArchivedAlternative,
+        cursor: &mut Cursor,
+    ) -> Result<Expr, String> {
+        let left = self.match_item(&alt.items[0], cursor)?.into_expr()?;
+        let op_token = match &alt.items[1].content {
+            ArchivedItemContent::Literal { token } => token,
+            _ => return Err("expected literal operator".into()),
+        };
+        let span = cursor.span();
+        self.match_literal(op_token, cursor)?;
+        let right = self.match_item(&alt.items[2], cursor)?.into_expr()?;
+        Ok(Self::make_bin_expr(op_token, left, right, span))
+    }
+
+    fn parse_expr_compare(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        self.parse_expr_binary(dialect, cursor, BinOp::Or)
+    }
+
+    fn parse_expr_add(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        self.parse_expr_binary(dialect, cursor, BinOp::Or)
+    }
+
+    fn parse_expr_mul(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        self.parse_expr_binary(dialect, cursor, BinOp::Or)
+    }
+
+    fn make_bin_expr(token: &ArchivedLiteralToken, left: Expr, right: Expr, span: Span) -> Expr {
+        let left = Box::new(left);
+        let right = Box::new(right);
+        match token {
+            ArchivedLiteralToken::LogicalOr => Expr::BinOr { left, right, span },
+            ArchivedLiteralToken::LogicalAnd => Expr::BinAnd { left, right, span },
+            ArchivedLiteralToken::Eq => Expr::BinEq { left, right, span },
+            ArchivedLiteralToken::NotEq => Expr::BinNotEq { left, right, span },
+            ArchivedLiteralToken::Lt => Expr::BinLt { left, right, span },
+            ArchivedLiteralToken::Gt => Expr::BinGt { left, right, span },
+            ArchivedLiteralToken::LtEq => Expr::BinLtEq { left, right, span },
+            ArchivedLiteralToken::GtEq => Expr::BinGtEq { left, right, span },
+            ArchivedLiteralToken::Plus => Expr::BinAdd { left, right, span },
+            ArchivedLiteralToken::Minus => Expr::BinSub { left, right, span },
+            ArchivedLiteralToken::Star => Expr::BinMul { left, right, span },
+            ArchivedLiteralToken::Percent => Expr::BinMod { left, right, span },
+            _ => Expr::BinAdd { left, right, span },
+        }
+    }
+
+    fn parse_expr_atom(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        let alternatives = match &dialect.rules[0] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("ExprAtom expected OrderedChoice".into()),
+        };
+
+        let (alt_idx, mut tuple) = self.match_one_choice(alternatives, cursor)?;
+
+        let expr = match alt_idx {
+            0 => {
+                // _@_:Instance → InstanceRef
+                let _at = tuple.take(0);
+                let (name, span) = tuple.take(1).into_pascal_name()?;
+                Expr::InstanceRef { name: TypeName(name), span }
+            }
+            1 => {
+                // :Variant → BareVariant
+                let (name, span) = tuple.take(0).into_pascal_name()?;
+                Expr::BareVariant { variant: VariantName(name), span }
+            }
+            2 => {
+                // :Type/:Variant → PathVariant
+                let (typ, span) = tuple.take(0).into_pascal_name()?;
+                let _slash = tuple.take(1);
+                let (variant, vspan) = tuple.take(2).into_pascal_name()?;
+                Expr::PathVariant {
+                    typ: TypeName(typ), variant: VariantName(variant),
+                    span: Span { start: span.start, end: vspan.end },
+                }
+            }
+            3 => {
+                // :Type/:method(+<Expr>) → PathCall
+                let (typ, span) = tuple.take(0).into_pascal_name()?;
+                let _slash = tuple.take(1);
+                let (method, _) = tuple.take(2).into_camel_name()?;
+                let args_group = tuple.take(3).into_group()?;
+                let args = args_group.0.into_iter().next()
+                    .map(|t| t.into_exprs()).transpose()?.unwrap_or_default();
+                Expr::PathCall {
+                    typ: TypeName(typ), method: MethodName(method), args, span,
+                }
+            }
+            4 => {
+                // :Literal → literal value
+                let (value, span) = tuple.take(0).into_literal()?;
+                match value {
+                    LiteralValue::Int(v) => Expr::IntLit { value: v, span },
+                    LiteralValue::Float(v) => Expr::FloatLit { value: v, span },
+                    LiteralValue::Str(v) => Expr::StringLit { value: v, span },
+                    LiteralValue::Bool(v) => Expr::BoolLit { value: v, span },
+                    LiteralValue::Char(v) => Expr::CharLit { value: v, span },
+                }
+            }
+            5 => {
+                // [<Body>] → InlineEval
+                let block = tuple.take(0).into_group()?.0.into_iter().next()
+                    .ok_or("empty body")?.into_block()?;
+                Expr::InlineEval(block)
+            }
+            6 => {
+                // (|<Match>|) → Match
+                let m = tuple.take(0).into_group()?.0.into_iter().next()
+                    .ok_or("empty match")?.into_match_expr()?;
+                Expr::Match(m)
+            }
+            7 => {
+                // [|<Loop>|] → Loop
+                let l = tuple.take(0).into_group()?.0.into_iter().next()
+                    .ok_or("empty loop")?.into_loop_expr()?;
+                Expr::Loop(l)
+            }
+            8 => {
+                // {|<IterationSource> [<Body>]|} → Iteration
+                let mut group = tuple.take(0).into_group()?;
+                let (source, binding) = group.take(0).into_iter_source()?;
+                let body = group.take(1).into_group()?.0.into_iter().next()
+                    .ok_or("empty iteration body")?.into_block()?;
+                Expr::Iteration(Iteration {
+                    binding, source: Box::new(source), body,
+                })
+            }
+            9 => {
+                // {<StructConstruct>} → StructConstruct
+                let (typ, fields) = tuple.take(0).into_group()?.0.into_iter().next()
+                    .ok_or("empty struct construct")?.into_struct_construct()?;
+                Expr::StructConstruct {
+                    typ, fields, span: Span { start: 0, end: 0 },
+                }
+            }
+            _ => return Err("unknown ExprAtom alternative".into()),
+        };
+
+        Ok(Typed::Expr(expr))
+    }
+
+    fn parse_postfix(&self, cursor: &mut Cursor) -> Result<Typed, String> {
+        let mut base = self.enter_dialect(&ArchivedDialectKind::ExprAtom, cursor)?
+            .into_expr()?;
+
+        let dialect = self.lookup(&ArchivedDialectKind::ExprPostfix);
+        let alternatives = match &dialect.rules[0] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Ok(Typed::Expr(base)),
+        };
+
+        loop {
+            let mut matched = false;
+            // Try postfix alternatives (skip last which is ExprAtom base)
+            for (idx, alt) in alternatives.iter().enumerate() {
+                if idx >= alternatives.len() - 1 { break; } // skip base case
+                let saved = cursor.pos();
+                // Match postfix items starting from index 1 (skip self-ref)
+                let mut ok = true;
+                let mut postfix = Vec::new();
+                for i in 1..alt.items.len() {
+                    match self.match_item(&alt.items[i], cursor) {
+                        Ok(v) => postfix.push(v),
+                        Err(_) => { cursor.restore(saved); ok = false; break; }
+                    }
+                }
+                if ok && cursor.pos() > saved {
+                    let label = Self::first_label_kind_at(&alt.items, 1);
+                    let start = Span { start: 0, end: 0 };
+                    base = match label {
+                        Some(ArchivedLabelKind::Field) => {
+                            let (field, span) = postfix.into_iter().nth(1)
+                                .ok_or("missing field name")?.into_pascal_name()?;
+                            Expr::FieldAccess {
+                                object: Box::new(base), field: FieldName(field), span,
+                            }
+                        }
+                        Some(ArchivedLabelKind::Method) => {
+                            let _dot = postfix.remove(0);
+                            let (method, _) = postfix.remove(0).into_camel_name()?;
+                            let args = if !postfix.is_empty() {
+                                postfix.remove(0).into_group()
+                                    .ok().and_then(|mut g| {
+                                        g.0.pop().and_then(|t| t.into_exprs().ok())
+                                    })
+                                    .unwrap_or_default()
+                            } else { vec![] };
+                            Expr::MethodCall {
+                                object: Box::new(base),
+                                method: MethodName(method), args,
+                                span: start,
+                            }
+                        }
+                        _ => {
+                            // _?_ → TryUnwrap
+                            Expr::TryUnwrap {
+                                inner: Box::new(base),
+                                span: postfix.into_iter().next()
+                                    .map(|t| match t { Typed::Token(s) => s, _ => start.clone() })
+                                    .unwrap_or(start),
+                            }
+                        }
+                    };
+                    matched = true;
+                    break;
+                }
+            }
+            if !matched { break; }
+        }
+
+        Ok(Typed::Expr(base))
+    }
+
+    fn first_label_kind_at(items: &rkyv::vec::ArchivedVec<ArchivedItem>, start: usize) -> Option<&ArchivedLabelKind> {
+        for i in start..items.len() {
+            if let ArchivedItemContent::Named { label } = &items[i].content {
+                return Some(&label.kind);
+            }
+        }
+        None
+    }
+
+    // ── Statement ───────────────────────────────────────────
+
+    fn parse_statement(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        let alternatives = match &dialect.rules[0] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("Statement expected OrderedChoice".into()),
+        };
+
+        let (alt_idx, mut tuple) = self.match_one_choice(alternatives, cursor)?;
+
+        let stmt = match alt_idx {
+            0 => {
+                // ^<Expr> → EarlyReturn
+                let _caret = tuple.take(0);
+                let expr = tuple.take(1).into_expr()?;
+                Statement::EarlyReturn(Box::new(expr))
+            }
+            1 => {
+                // [|<Expr> <Body>|] → While
+                let mut group = tuple.take(0).into_group()?;
+                let cond = group.take(0).into_expr()?;
+                let body = group.take(1).into_block()?;
+                Statement::Loop(LoopExpr {
+                    condition: Some(Box::new(cond)), body,
+                })
+            }
+            2 => {
+                // [|<Body>|] → infinite loop
+                let group = tuple.take(0).into_group()?;
+                let body = group.0.into_iter().next()
+                    .ok_or("empty loop body")?.into_block()?;
+                Statement::Loop(LoopExpr { condition: None, body })
+            }
+            3 => {
+                // {|<IterationSource> [<Body>]|} → Iteration
+                let mut group = tuple.take(0).into_group()?;
+                let (source, binding) = group.take(0).into_iter_source()?;
+                let body = group.take(1).into_group()?.0.into_iter().next()
+                    .ok_or("empty iteration body")?.into_block()?;
+                Statement::Iteration(Iteration {
+                    binding, source: Box::new(source), body,
+                })
+            }
+            4 => {
+                // (@Type <Type>) → LocalTypeDecl
+                let mut group = tuple.take(0).into_group()?;
+                let (name, span) = group.take(0).into_pascal_name()?;
+                let typ = group.take(1).into_type_expr()?;
+                Statement::LocalTypeDecl { name: TypeName(name), typ, span }
+            }
+            5 => {
+                // _~@_<Mutation> → Mutation
+                let _mut_at = tuple.take(0);
+                let mutation = tuple.take(1).into_mutation()?;
+                Statement::Mutation(mutation)
+            }
+            6 => {
+                // _@_<Instance> → Instance
+                let _at = tuple.take(0);
+                let instance = tuple.take(1).into_instance()?;
+                Statement::Instance(instance)
+            }
+            7 => {
+                // <Expr> → expression statement
+                let expr = tuple.take(0).into_expr()?;
+                Statement::Expr(Box::new(expr))
+            }
+            _ => return Err("unknown Statement alternative".into()),
+        };
+
+        Ok(Typed::Statement(stmt))
+    }
+
+    // ── Instance ────────────────────────────────────────────
+
+    fn parse_instance(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        let alternatives = match &dialect.rules[0] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("Instance expected OrderedChoice".into()),
+        };
+
+        let (alt_idx, mut tuple) = self.match_one_choice(alternatives, cursor)?;
+
+        let instance = match alt_idx {
+            0 => {
+                // @Instance (<Type>) <Expr>
+                let (name, span) = tuple.take(0).into_pascal_name()?;
+                let type_ann = tuple.take(1).into_group()?.0.into_iter().next()
+                    .map(|t| t.into_type_expr()).transpose()?;
+                let value = tuple.take(2).into_expr()?;
+                Instance {
+                    name: TypeName(name), type_annotation: type_ann,
+                    value: Box::new(value), span,
+                }
+            }
+            1 => {
+                // @Instance <Expr>
+                let (name, span) = tuple.take(0).into_pascal_name()?;
+                let value = tuple.take(1).into_expr()?;
+                Instance {
+                    name: TypeName(name), type_annotation: None,
+                    value: Box::new(value), span,
+                }
+            }
+            _ => return Err("unknown Instance alternative".into()),
+        };
+
+        Ok(Typed::Instance(instance))
+    }
+
+    // ── Mutation ────────────────────────────────────────────
+
+    fn parse_mutation(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // :Instance.:method(+<Expr>)
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("Mutation expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let (name, span) = tuple.take(0).into_pascal_name()?;
+        let _dot = tuple.take(1);
+        let (method, _) = tuple.take(2).into_camel_name()?;
+        let args_group = tuple.take(3).into_group()?;
+        let args = args_group.0.into_iter().next()
+            .map(|t| t.into_exprs()).transpose()?.unwrap_or_default();
+
+        Ok(Typed::Mutation(Mutation {
+            name: TypeName(name), method: MethodName(method), args, span,
+        }))
+    }
+
+    // ── IterationSource ─────────────────────────────────────
+
+    fn parse_iteration_source(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // <Expr>.@Binding
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("IterationSource expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let source = tuple.take(0).into_expr()?;
+        let _dot = tuple.take(1);
+        let (binding, span) = tuple.take(2).into_pascal_name()?;
+
+        Ok(Typed::IterSource {
+            source,
+            binding: Pattern::IdentBind {
+                name: TypeName(binding), mutable: false, span,
+            },
+        })
+    }
+
+    // ── StructConstruct ─────────────────────────────────────
+
+    fn parse_struct_construct(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // :Struct +(:Field <Expr>)
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("StructConstruct expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let (typ, _) = tuple.take(0).into_pascal_name()?;
+
+        let mut fields = Vec::new();
+        if let Ok(groups) = tuple.take(1).into_group() {
+            for item in groups.0 {
+                if let Ok(mut g) = item.into_group() {
+                    let (field_name, _) = g.take(0).into_pascal_name()?;
+                    let value = g.take(1).into_expr()?;
+                    fields.push(FieldInit {
+                        name: FieldName(field_name), value: Box::new(value),
+                    });
+                }
+            }
+        }
+
+        Ok(Typed::StructConstruct { typ: TypeName(typ), fields })
+    }
+
+    // ── Match ───────────────────────────────────────────────
+
+    fn parse_match(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // ?<Expr> +(<Pattern>) <Expr>
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("Match expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+
+        // Optional target expression
+        let target = match tuple.take(0) {
+            Typed::Expr(e) => Some(Box::new(e)),
+            Typed::Exprs(v) if v.is_empty() => None,
+            Typed::Exprs(mut v) if v.len() == 1 => Some(Box::new(v.remove(0))),
+            _ => None,
+        };
+
+        // Arms: repeated (pattern) expr pairs
+        let mut arms = Vec::new();
+        if let Ok(groups) = tuple.take(1).into_group() {
+            for item in groups.0 {
+                if let Ok(mut g) = item.into_group() {
+                    // Each group: Seq([pattern_group, expr])
+                    // Actually it's from +(<Pattern>) <Expr>, so...
+                    // The repeat contains delimited (Pattern) followed by Expr
+                    // This needs more careful handling
+                    let pattern = g.take(0).into_group()?.0.into_iter().next()
+                        .ok_or("empty pattern")?.into_pattern()?;
+                    let result = g.take(1).into_expr()?;
+                    arms.push(MatchArm {
+                        pattern, guard: None, result: Box::new(result),
+                    });
+                }
+            }
+        }
+
+        Ok(Typed::MatchExpr(MatchExpr { target, arms }))
+    }
+
+    // ── Loop ────────────────────────────────────────────────
+
+    fn parse_loop(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        let alternatives = match &dialect.rules[0] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("Loop expected OrderedChoice".into()),
+        };
+
+        let (alt_idx, mut tuple) = self.match_one_choice(alternatives, cursor)?;
+
+        let loop_expr = match alt_idx {
+            0 => {
+                // <Expr> +<Statement> → conditional
+                let cond = tuple.take(0).into_expr()?;
+                let stmts = tuple.take(1).into_statements()?;
+                LoopExpr {
+                    condition: Some(Box::new(cond)),
+                    body: Block { statements: stmts, tail: None },
+                }
+            }
+            1 => {
+                // +<Statement> → infinite
+                let stmts = tuple.take(0).into_statements()?;
+                LoopExpr {
+                    condition: None,
+                    body: Block { statements: stmts, tail: None },
+                }
+            }
+            _ => return Err("unknown Loop alternative".into()),
+        };
+
+        Ok(Typed::LoopExpr(loop_expr))
+    }
+
+    // ── Process ─────────────────────────────────────────────
+
+    fn parse_process(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // +<Statement>
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("Process expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let stmts = tuple.take(0).into_statements()?;
+
+        Ok(Typed::Block(Block { statements: stmts, tail: None }))
+    }
+
+    // ── Method ──────────────────────────────────────────────
+
+    fn parse_method(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // +<Param> ?<Type> // body alternatives
+        // Method.synth has 2 rules: Sequential then OrderedChoice
+
+        // Rule 0: Sequential (+<Param> ?<Type>)
+        let seq_items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("Method rule 0 expected Sequential".into()),
+        };
+
+        let mut seq_tuple = self.match_items_seq(seq_items, cursor)?;
+        let params = seq_tuple.take(0).into_params()?;
+        let return_type = match seq_tuple.take(1) {
+            Typed::TypeExpr(t) => Some(t),
+            Typed::TypeExprs(v) if v.is_empty() => None,
+            Typed::TypeExprs(mut v) if v.len() == 1 => Some(v.remove(0)),
+            _ => None,
+        };
+
+        // Rule 1: OrderedChoice (body variants)
+        let alternatives = match &dialect.rules[1] {
+            ArchivedRule::OrderedChoice { alternatives } => alternatives,
+            _ => return Err("Method rule 1 expected OrderedChoice".into()),
+        };
+
+        let (_body_idx, mut body_tuple) = self.match_one_choice(alternatives, cursor)?;
+
+        let body = match body_tuple.take(0) {
+            Typed::Block(b) => MethodBody::Block(b),
+            Typed::MatchExpr(m) => MethodBody::Match(m),
+            Typed::LoopExpr(l) => MethodBody::Loop(l),
+            Typed::Iteration(i) => MethodBody::Iteration(i),
+            Typed::Group(mut g) => {
+                // Could be delimited body — try to extract
+                match g.take(0) {
+                    Typed::Block(b) => MethodBody::Block(b),
+                    Typed::MatchExpr(m) => MethodBody::Match(m),
+                    Typed::LoopExpr(l) => MethodBody::Loop(l),
+                    other => {
+                        if let Ok((typ, fields)) = other.into_struct_construct() {
+                            MethodBody::StructConstruct {
+                                typ, fields, span: Span { start: 0, end: 0 },
+                            }
+                        } else {
+                            return Err("unknown method body".into());
+                        }
+                    }
+                }
+            }
+            other => return Err(format!("unexpected method body: {}", other.tag())),
+        };
+
+        Ok(Typed::MethodDef(MethodDef {
+            name: MethodName(String::new()), // filled by caller
+            generic_params: vec![],
+            params, return_type, body,
+            span: Span { start: 0, end: 0 },
+        }))
+    }
+
+    // ── TraitDecl ───────────────────────────────────────────
+
+    fn parse_trait_decl(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // [+(@signature <Signature>)]
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("TraitDecl expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let sigs_group = tuple.take(0).into_group()?;
+
+        let mut signatures = Vec::new();
+        // The group contains the repeated (@signature <Signature>) pairs
+        if let Some(Typed::Group(inner_groups)) = sigs_group.0.into_iter().next() {
+            for item in inner_groups.0 {
+                if let Ok(mut g) = item.into_group() {
+                    let (name, span) = g.take(0).into_camel_name()?;
+                    let mut sig = g.take(1).into_method_sig()?;
+                    sig.name = MethodName(name);
+                    sig.span = span;
+                    signatures.push(sig);
+                }
+            }
+        }
+
+        Ok(Typed::TraitDecl(TraitDeclDef {
+            name: TraitName(String::new()),
+            visibility: Visibility::Public,
+            generic_params: vec![], super_traits: vec![],
+            associated_types: vec![], signatures,
+            span: Span { start: 0, end: 0 },
+        }))
+    }
+
+    // ── TraitImpl ───────────────────────────────────────────
+
+    fn parse_trait_impl(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // <Type> [<TypeImpl>]
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("TraitImpl expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let typ = tuple.take(0).into_type_expr()?;
+        let methods_group = tuple.take(1).into_group()?;
+        let methods = methods_group.0.into_iter().next()
+            .map(|t| t.into_methods()).transpose()?.unwrap_or_default();
+
+        Ok(Typed::TraitImpl(TraitImplDef {
+            trait_name: TraitName(String::new()),
+            trait_args: vec![], typ,
+            generic_params: vec![], methods,
+            associated_types: vec![],
+            span: Span { start: 0, end: 0 },
+        }))
+    }
+
+    // ── TypeImpl ────────────────────────────────────────────
+
+    fn parse_type_impl(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // +(@method <Method>)
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("TypeImpl expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let mut methods = Vec::new();
+
+        if let Ok(groups) = tuple.take(0).into_group() {
+            for item in groups.0 {
+                if let Ok(mut g) = item.into_group() {
+                    let (name, span) = g.take(0).into_camel_name()?;
+                    let mut method = g.take(1).into_method_def()?;
+                    method.name = MethodName(name);
+                    method.span = span;
+                    methods.push(method);
+                }
+            }
+        }
+
+        Ok(Typed::Methods(methods))
+    }
+
+    // ── Ffi ─────────────────────────────────────────────────
+
+    fn parse_ffi(
+        &self,
+        dialect: &ArchivedDialect,
+        cursor: &mut Cursor,
+    ) -> Result<Typed, String> {
+        // +(@foreignFunction <Signature>)
+        let items = match &dialect.rules[0] {
+            ArchivedRule::Sequential { items } => items,
+            _ => return Err("Ffi expected Sequential".into()),
+        };
+
+        let mut tuple = self.match_items_seq(items, cursor)?;
+        let mut functions = Vec::new();
+
+        if let Ok(groups) = tuple.take(0).into_group() {
+            for item in groups.0 {
+                if let Ok(mut g) = item.into_group() {
+                    let (name, span) = g.take(0).into_camel_name()?;
+                    let mut sig = g.take(1).into_method_sig()?;
+                    functions.push(FfiFunction {
+                        name: MethodName(name),
+                        params: sig.params,
+                        return_type: sig.return_type,
+                        span,
+                    });
+                }
+            }
+        }
+
+        Ok(Typed::FfiDef(FfiDef {
+            library: TypeName(String::new()),
+            functions,
+            span: Span { start: 0, end: 0 },
+        }))
+    }
 }
