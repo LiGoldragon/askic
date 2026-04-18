@@ -1,18 +1,45 @@
 # askic — The Aski Compiler
 
-Reads .aski source, produces per-module .rkyv (ModuleDef).
-Generic dialect engine — no language-specific parsing logic.
-The dialect data from askicc IS the state machine.
+Reads `.core`/`.aski`/`.synth`/`.exec` source files and produces
+per-file rkyv. Generic dialect engine — no language-specific
+parsing logic. The dialect data from askicc IS the state machine.
 
 
-## Engine Rewrite Design
+## v0.18 — Surface Dispatch
 
-The current engine has ParseValue::Seq (untyped bags), a
-separate Builder that guesses nesting depth, as_* methods
-that panic, and hard-coded alt_idx matching. All of this
-goes away.
+askic dispatches on file extension:
 
-### Typed enum, no Seq
+- `.core` → loads `dialects.core.rkyv`, outputs core types
+- `.aski` → loads `dialects.aski.rkyv`, outputs ModuleDef
+- `.synth` → loads `dialects.synth.rkyv` (tooling use only)
+- `.exec` → loads `dialects.exec.rkyv`, outputs ExecProgram
+
+Each surface's dialect tree is loaded independently from
+`<DIALECT_ROOT>/dialects.<surface>.rkyv`. Cross-surface
+dialect refs (`<:surface:Name>` in the source `.synth`) are
+resolved by loading the referenced surface's tree too.
+
+
+## Engine Design (pending full implementation)
+
+The engine is fully data-driven. The dialect data tells it
+everything — no per-dialect hard-coded methods, no alt_idx,
+no guessing.
+
+**Current state:** partial typed-value infrastructure
+(`typed.rs` has `Typed` enum and `ItemTuple`). `machine.rs`
+has some per-dialect methods as scaffolding. Old engine and
+builder still present.
+
+**Target state:** one generic `assemble_from_label(LabelKind,
+...)` function that dispatches construction. No `parse_root`,
+no `parse_enum`, no `parse_type`, etc. The dialect data's
+`@Label` and `#Tag#` identify every output variant.
+
+
+## Design Principles
+
+### Typed values, no Seq
 
 Every matched value carries its type. `Typed::Expr(Expr)`,
 `Typed::PascalName(String, Span)`, `Typed::Exprs(Vec<Expr>)`.
@@ -20,23 +47,15 @@ No untyped bags. `into_*` methods return Result, never panic.
 
 ### ItemTuple for delimited groups
 
-Delimited items like `(@Enum <Enum>)` produce an ItemTuple
-(fixed-arity positional). Always immediately destructured
-by the dialect method via `tuple.take(idx)`. Never stored.
+Delimited items produce a fixed-arity positional tuple,
+immediately destructured via `tuple.take(idx)`. Never stored.
 
-### No separate builder
+### LabelKind dispatch, not alt_idx
 
-Each DialectKind has a `parse_*` method that reads the
-dialect tree and constructs the output type directly.
-`parse_root` builds ModuleDef. `parse_enum` builds
-Vec<EnumChild>. `parse_type` builds TypeExpr.
-
-### LabelKind classification, not alt_idx
-
-The first LabelKind in an alternative's items tells the
-engine what construct it matched. Enum, Struct, Trait,
-Const, Newtype — from the dialect data, not from position.
-Reordering synth alternatives doesn't break the engine.
+The `@Label` or `#Tag#` in each alternative tells the engine
+what construct it matched. Dispatching on alt_idx is fragile
+(reorder a synth alternative → break). Dispatching on
+LabelKind is robust — the synth grammar is the source of truth.
 
 ### Cardinality-driven looping
 
@@ -52,4 +71,4 @@ DialectKind determines the collection type. No Seq wrapping.
 ## Dependencies
 
 synth-core (grammar types), aski-core (parse tree types),
-rkyv, logos. Dialect data embedded via DIALECT_DATA env var.
+rkyv, logos. Dialect data from askicc.
