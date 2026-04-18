@@ -45,8 +45,8 @@
         synth-core-source = synth-core.packages.${system}.source;
         aski-core-source = aski-core.packages.${system}.source;
 
-        # askicc's rkyv dialect-data-tree — embedded via include_bytes!
-        dialect-data = askicc.packages.${system}.dialect-data;
+        # askicc's rkyv dsls-data-tree — embedded via include_bytes!
+        dsls-data = askicc.packages.${system}.dsls-data;
 
         src = pkgs.lib.cleanSourceWith {
           src = ./.;
@@ -65,7 +65,7 @@
             cp -r ${aski-core-source} $sourceRoot/flake-crates/aski-core
             chmod -R +w $sourceRoot/flake-crates
           '';
-          DIALECT_DATA = "${dialect-data}/dialects.rkyv";
+          DIALECT_DATA = "${dsls-data}/dsls.rkyv";
         };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
@@ -89,7 +89,7 @@
 
         devShells.default = craneLib.devShell {
           packages = [ pkgs.rust-analyzer ];
-          DIALECT_DATA = "${dialect-data}/dialects.rkyv";
+          DIALECT_DATA = "${dsls-data}/dsls.rkyv";
         };
       }
     );
