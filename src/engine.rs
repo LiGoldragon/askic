@@ -1,7 +1,7 @@
 /// Engine — generic dialect state machine.
 ///
 /// Walks the ArchivedDialectTree, matches tokens, produces ParseValues.
-/// Has NO knowledge of sema-core types — that's the builder's job.
+/// Has NO knowledge of veri-core types — that's the builder's job.
 
 use std::collections::HashMap;
 

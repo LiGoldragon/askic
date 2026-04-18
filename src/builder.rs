@@ -1,7 +1,7 @@
-/// Builder — per-dialect sema-core type constructors.
+/// Builder — per-dialect veri-core type constructors.
 ///
 /// Each method takes ParseValues from the engine and
-/// constructs sema-core types. All sema-core knowledge
+/// constructs veri-core types. All veri-core knowledge
 /// lives here — the engine is generic.
 
 use synth_core::*;

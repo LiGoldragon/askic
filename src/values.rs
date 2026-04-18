@@ -21,7 +21,7 @@ pub enum ParseValue {
     None_,
 }
 
-/// What a dialect produces — typed sema-core values.
+/// What a dialect produces — typed veri-core values.
 #[derive(Debug)]
 pub enum DialectValue {
     Module(ModuleDef),
