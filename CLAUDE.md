@@ -1,74 +1,87 @@
 # askic — The Aski Compiler
 
-Reads `.core`/`.aski`/`.synth`/`.exec` source files and produces
-per-file rkyv. Generic dialect engine — no language-specific
-parsing logic. The dialect data from askicc IS the state machine.
+Reads `.core` / `.aski` / `.synth` / `.exec` source files. Produces
+per-file rkyv conforming to aski-core types. Generic dialect engine
+— no language-specific parsing logic in source. The dialect data
+from askicc IS the state machine.
 
+**v0.18 status: pending full rewrite.** Current machine.rs / engine.rs
+/ builder.rs are pre-v0.18 and reference the old aski-core types
+(ModuleDef, etc.) that were redesigned. Needs ground-up rewrite
+against the new contract.
 
-## v0.18 — Surface Dispatch
+---
 
-askic dispatches on file extension:
+## Engine design (target)
 
-- `.core` → loads `dialects.core.rkyv`, outputs core types
-- `.aski` → loads `dialects.aski.rkyv`, outputs ModuleDef
-- `.synth` → loads `dialects.synth.rkyv` (tooling use only)
-- `.exec` → loads `dialects.exec.rkyv`, outputs ExecProgram
+### Pure dsl-driven state machine
+askic engine source has **zero hardcoded grammar terms**. No
+`TagKind::Enum` variant names in the engine. The engine is
+infrastructure: reads source, walks dsls.rkyv, tracks adjacency,
+handles cardinality, dispatches on tags.
 
-Each surface's dialect tree is loaded independently from
-`<DIALECT_ROOT>/dialects.<surface>.rkyv`. Cross-surface
-dialect refs (`<:surface:Name>` in the source `.synth`) are
-resolved by loading the referenced surface's tree too.
+### Per-tag construction via proc-macro
+The engine hands matched items to `askic_assemble::assemble_from_tag(tag,
+items)` — a function generated at compile time by the
+`askic-assemble` proc-macro crate. That crate reads dsls.rkyv +
+aski-core's .core types and emits one match arm per TagKind, each
+populating the corresponding `aski_core::` entity.
 
+Result: engine source has ONE macro invocation
+(`askic_assemble::assemble_from_dsls!(env!("DSLS_RKYV"))`) and
+the grammar-term dispatch code exists in the expanded output,
+computed from dsls.rkyv — not hand-written.
 
-## Engine Design (pending full implementation)
+### Single combined rkyv
+askicc emits ONE `dsls.rkyv` containing all four DSLs' dialects,
+each tagged with its `SurfaceKind`. askic loads the one file
+at compile time (via `include_bytes!`). Dispatch is a flat
+`HashMap<(SurfaceKind, DialectKind), idx>`. File extension
+(`.core` / `.aski` / `.synth` / `.exec`) picks which surface's
+`Root` dialect to enter.
 
-The engine is fully data-driven. The dialect data tells it
-everything — no per-dialect hard-coded methods, no alt_idx,
-no guessing.
+### Tag dispatch, not alt_idx, not LabelKind
+Each synth alternative has a `#Tag#` (TagKind). The engine uses
+TagKind as the dispatch key. `LabelKind` is the ROLE of a
+source-read identifier within a construct; it's not the engine's
+dispatch key. Keep the two enums distinct (they are, in synth-core).
 
-**Current state:** partial typed-value infrastructure
-(`typed.rs` has `Typed` enum and `ItemTuple`). `machine.rs`
-has some per-dialect methods as scaffolding. Old engine and
-builder still present.
-
-**Target state:** one generic `assemble_from_label(LabelKind,
-...)` function that dispatches construction. No `parse_root`,
-no `parse_enum`, no `parse_type`, etc. The dialect data's
-`@Label` and `#Tag#` identify every output variant.
-
-
-## Design Principles
-
-### Typed values, no Seq
-
-Every matched value carries its type. `Typed::Expr(Expr)`,
-`Typed::PascalName(String, Span)`, `Typed::Exprs(Vec<Expr>)`.
-No untyped bags. `into_*` methods return Result, never panic.
-
-### ItemTuple for delimited groups
-
-Delimited items produce a fixed-arity positional tuple,
-immediately destructured via `tuple.take(idx)`. Never stored.
-
-### LabelKind dispatch, not alt_idx
-
-The `@Label` or `#Tag#` in each alternative tells the engine
-what construct it matched. Dispatching on alt_idx is fragile
-(reorder a synth alternative → break). Dispatching on
-LabelKind is robust — the synth grammar is the source of truth.
-
-### Cardinality-driven looping
-
-Only alternatives with `*` or `+` cardinality loop.
-Leaf dialects (Type, Pattern, Param) match once and stop.
-
-### Typed collections from repeat
-
-`*<Expr>` → `Typed::Exprs(Vec<Expr>)`. The inner item's
-DialectKind determines the collection type. No Seq wrapping.
-
+---
 
 ## Dependencies
 
-synth-core (grammar types), aski-core (parse tree types),
-rkyv, logos. Dialect data from askicc.
+- **synth-core** — grammar contract types (Dialect, Rule, Item,
+  Tag, Label, TagKind, LabelKind, DialectKind, SurfaceKind, …)
+- **aski-core** — parse-tree output types (Module, Enum, Struct,
+  Method, Type, Param, Origin, Expr, Statement, Pattern, Body, …)
+- **askic-assemble** — proc-macro that generates the per-tag
+  dispatch code at compile time
+- **rkyv**, **logos** — third-party
+
+dsls.rkyv comes from askicc (via flake input or env var
+`DSLS_RKYV`).
+
+---
+
+## Current code state (pre-v0.18, awaiting rewrite)
+
+- `builder.rs` — OLD per-dialect builder methods. **Delete entirely**
+  on rewrite.
+- `machine.rs` — has partial typed-value infrastructure (`Typed`
+  enum, `ItemTuple`) but still has per-dialect parse methods.
+  **Full rewrite.**
+- `engine.rs` — old lexer/dispatcher. **Full rewrite** to generic
+  TagKind-dispatched state machine.
+- `typed.rs` — `Typed` enum may survive as intermediate type
+  between engine and `assemble_from_tag`.
+- `values.rs` — old value types. Likely deleted.
+
+**7 ignored tests** — all test builder.rs bugs. Will be deleted
+with builder.rs. The test suite gets rewritten against the new
+engine's observable behavior.
+
+---
+
+## VCS
+
+`jj` mandatory. Git is storage backend only.
