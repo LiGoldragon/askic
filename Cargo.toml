@@ -1,13 +1,9 @@
 [package]
 name = "askic"
-version = "0.17.0"
+version = "0.18.0"
 edition = "2021"
 authors = ["Li Goldragon <li@goldragon.criome.net>"]
-description = "askic — aski frontend: dialect state machine → rkyv parse tree"
-
-[[bin]]
-name = "askic"
-path = "src/main.rs"
+description = "askic — aski frontend: pure dsl-driven state machine over dsls.rkyv"
 
 [lib]
 name = "askic"
