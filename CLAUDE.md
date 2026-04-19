@@ -63,7 +63,7 @@ no `@` for instance), v0.20 adds:
   paths in signatures.
 - **`self` as expression atom** — `self.field`, `self.method()` now
   parse. New `SelfRef` ExprAtom variant.
-- **FFI moved to own surface** (`.ffi` files, `SurfaceKind::Ffi`).
+- **RFI moved to own surface** (`.rfi` files, `SurfaceKind::Rfi`).
 - **Module.Exports retired** — visibility is declaration-local.
 
 ### Previous v0.19 mechanics:
