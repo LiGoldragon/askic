@@ -5,7 +5,7 @@ per-file rkyv conforming to aski-core types. Generic dialect engine
 — no language-specific parsing logic in source. The dialect data
 from askicc IS the state machine.
 
-**v0.19 status: wiped, awaiting rewrite.** All pre-v0.18 engine code
+**v0.20 status: wiped, awaiting rewrite.** All pre-v0.18 engine code
 (builder.rs, machine.rs, engine.rs, typed.rs, values.rs, lexer.rs,
 main.rs) was deleted on 2026-04-18. Only `lib.rs` (one-line
 placeholder), `Cargo.toml` (v0.18.0), `flake.nix`, `LICENSE.md`,
@@ -49,7 +49,24 @@ dispatch key. Keep the two enums distinct (they are, in synth-core).
 
 ---
 
-## v0.19 syntax (what the engine must parse)
+## v0.20 syntax (what the engine must parse)
+
+In addition to v0.19's sigil/delimiter changes (`&` borrow, `:` path,
+`~&` mutable borrow, `{}` type app, `[]` or-pattern, camel locals,
+no `@` for instance), v0.20 adds:
+
+- **`@` sigil** for VISIBILITY (public) on declarations and fields
+- **Trait delimiter** moved from `(...)` to `[|...|]` at root (every root
+  construct now has a distinct opening token — first-token decidable)
+- **Associated types** in traits: bare Pascal name (decl) or
+  `(Pascal Type)` (impl binding). New `SelfAssocType` for `self:Item`
+  paths in signatures.
+- **`self` as expression atom** — `self.field`, `self.method()` now
+  parse. New `SelfRef` ExprAtom variant.
+- **FFI moved to own surface** (`.ffi` files, `SurfaceKind::Ffi`).
+- **Module.Exports retired** — visibility is declaration-local.
+
+### Previous v0.19 mechanics:
 
 - `&self`, `~&self` for borrows (was `:@Self`, `~@Self`)
 - `Type:method(args)`, `Type:Variant` for paths (was `/`)
