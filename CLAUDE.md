@@ -5,10 +5,11 @@ per-file rkyv conforming to aski-core types. Generic dialect engine
 — no language-specific parsing logic in source. The dialect data
 from askicc IS the state machine.
 
-**v0.18 status: pending full rewrite.** Current machine.rs / engine.rs
-/ builder.rs are pre-v0.18 and reference the old aski-core types
-(ModuleDef, etc.) that were redesigned. Needs ground-up rewrite
-against the new contract.
+**v0.19 status: wiped, awaiting rewrite.** All pre-v0.18 engine code
+(builder.rs, machine.rs, engine.rs, typed.rs, values.rs, lexer.rs,
+main.rs) was deleted on 2026-04-18. Only `lib.rs` (one-line
+placeholder), `Cargo.toml` (v0.18.0), `flake.nix`, `LICENSE.md`,
+and this `CLAUDE.md` remain. Rewrite blocks on **askic-assemble**.
 
 ---
 
@@ -48,37 +49,45 @@ dispatch key. Keep the two enums distinct (they are, in synth-core).
 
 ---
 
+## v0.19 syntax (what the engine must parse)
+
+- `&self`, `~&self` for borrows (was `:@Self`, `~@Self`)
+- `Type:method(args)`, `Type:Variant` for paths (was `/`)
+- `{Vec Element}` type application (was `[]`)
+- `[Fire Air]` or-patterns (was `(Fire | Air)`)
+- `(counter U32:new(0))` local decls with camel names (was `@Counter U32/new(0)`)
+- `[expr]` ExprStmt (was bare)
+- `{$Value}` generic slot after definition name
+- Pascal traits, camel locals/methods/self
+- No `@` sigil anywhere in aski source
+
+See `/home/li/git/aski-core/spec/syntax-v019.aski` for examples.
+
+---
+
 ## Dependencies
 
 - **synth-core** — grammar contract types (Dialect, Rule, Item,
   Tag, Label, TagKind, LabelKind, DialectKind, SurfaceKind, …)
 - **aski-core** — parse-tree output types (Module, Enum, Struct,
-  Method, Type, Param, Origin, Expr, Statement, Pattern, Body, …)
+  Method, Type, Param, Origin, Expr, Statement, Pattern, Body,
+  LocalDecl, Loop, Program, …)
 - **askic-assemble** — proc-macro that generates the per-tag
-  dispatch code at compile time
-- **rkyv**, **logos** — third-party
+  dispatch code at compile time (does not exist yet — blocker)
+- **rkyv**, **logos** (optional) — third-party
 
 dsls.rkyv comes from askicc (via flake input or env var
 `DSLS_RKYV`).
 
 ---
 
-## Current code state (pre-v0.18, awaiting rewrite)
+## Current code state (empty shell, 2026-04-19)
 
-- `builder.rs` — OLD per-dialect builder methods. **Delete entirely**
-  on rewrite.
-- `machine.rs` — has partial typed-value infrastructure (`Typed`
-  enum, `ItemTuple`) but still has per-dialect parse methods.
-  **Full rewrite.**
-- `engine.rs` — old lexer/dispatcher. **Full rewrite** to generic
-  TagKind-dispatched state machine.
-- `typed.rs` — `Typed` enum may survive as intermediate type
-  between engine and `assemble_from_tag`.
-- `values.rs` — old value types. Likely deleted.
+- `src/lib.rs` — one-line placeholder
+- `Cargo.toml` — 0.18.0, no `[[bin]]` entry
+- `flake.nix`, `LICENSE.md`, `CLAUDE.md` — shell
 
-**7 ignored tests** — all test builder.rs bugs. Will be deleted
-with builder.rs. The test suite gets rewritten against the new
-engine's observable behavior.
+Nothing to cargo-cult on during the rewrite.
 
 ---
 
