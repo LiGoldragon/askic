@@ -17,7 +17,7 @@
       inputs.flake-utils.follows = "flake-utils";
     };
     aski-core = {
-      url = "github:Criome/aski-core";
+      url = "github:LiGoldragon/aski-core";
       inputs.nixpkgs.follows = "nixpkgs";
       inputs.fenix.follows = "fenix";
       inputs.crane.follows = "crane";
