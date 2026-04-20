@@ -1,1 +1,1 @@
-// askic — aski frontend. v0.18 rewrite pending askic-assemble.
+// askic — aski frontend. Placeholder; rewrite pending askic-assemble (v0.20).

@@ -34,12 +34,12 @@ the grammar-term dispatch code exists in the expanded output,
 computed from dsls.rkyv — not hand-written.
 
 ### Single combined rkyv
-askicc emits ONE `dsls.rkyv` containing all four DSLs' dialects,
+askicc emits ONE `dsls.rkyv` containing all five DSLs' dialects,
 each tagged with its `SurfaceKind`. askic loads the one file
 at compile time (via `include_bytes!`). Dispatch is a flat
 `HashMap<(SurfaceKind, DialectKind), idx>`. File extension
-(`.core` / `.aski` / `.synth` / `.exec`) picks which surface's
-`Root` dialect to enter.
+(`.core` / `.aski` / `.synth` / `.exec` / `.rfi`) picks which
+surface's `Root` dialect to enter.
 
 ### Tag dispatch, not alt_idx, not LabelKind
 Each synth alternative has a `#Tag#` (TagKind). The engine uses
@@ -78,7 +78,7 @@ no `@` for instance), v0.20 adds:
 - Pascal traits, camel locals/methods/self
 - No `@` sigil anywhere in aski source
 
-See `/home/li/git/aski-core/spec/syntax-v019.aski` for examples.
+See `/home/li/git/aski-core/spec/syntax-v020.aski` for examples.
 
 ---
 
