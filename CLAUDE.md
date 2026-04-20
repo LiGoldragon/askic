@@ -78,7 +78,7 @@ no `@` for instance), v0.20 adds:
 - Pascal traits, camel locals/methods/self
 - No `@` sigil anywhere in aski source
 
-See `/home/li/git/aski-core/spec/syntax-v020.aski` for examples.
+See `/home/li/git/aski/spec/syntax-v020.aski` for examples.
 
 ---
 
